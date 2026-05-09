@@ -2,8 +2,8 @@ import { get, set } from "idb-keyval";
 import type { Cask, CatalogMeta } from "./caskTypes";
 import { STALE_AFTER_MS } from "./caskTypes";
 
-const KEY_CASKS = "casky:catalog:v1";
-const KEY_META = "casky:catalog-meta:v1";
+const KEY_CASKS = "casky:catalog:v2";
+const KEY_META = "casky:catalog-meta:v2";
 
 export async function readCachedCatalog(): Promise<{
   casks: Cask[] | null;
