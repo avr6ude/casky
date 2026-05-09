@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { Plus, Check, Sparkles } from "lucide-react";
+import { Plus, Check, Sparkles, Info } from "lucide-react";
 import { Box, Flex, HStack, styled } from "styled-system/jsx";
-import { IconButton } from "@/components/ui";
+import { IconButton, Tooltip } from "@/components/ui";
 import { collections } from "@/data/collections";
 import { useCatalogStore } from "@/store/catalog";
 import { useCartStore } from "@/store/cart";
+import { config } from "@/data/config";
 
 const Strip = styled("div", {
   base: {
@@ -107,6 +108,15 @@ const SectionTitle = styled("h2", {
   },
 });
 
+const PrLink = styled("a", {
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    color: "fg.subtle",
+    _hover: { color: "violet.11" },
+  },
+});
+
 export function Collections() {
   const casks = useCatalogStore((s) => s.casks);
   const setAll = useCartStore((s) => s.setAll);
@@ -127,6 +137,20 @@ export function Collections() {
         <HStack gap="2" color="fg.muted">
           <Sparkles size={14} />
           <SectionTitle>Curated kits</SectionTitle>
+          <Tooltip
+            content="Have a kit idea? Open a PR on GitHub."
+            openDelay={150}
+            closeDelay={0}
+          >
+            <PrLink
+              href={config.repoUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Suggest a kit on GitHub"
+            >
+              <Info size={12} />
+            </PrLink>
+          </Tooltip>
         </HStack>
       </Header>
       <Strip>
