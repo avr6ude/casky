@@ -48,8 +48,6 @@ export function AppHeader({ onAboutOpen }: AppHeaderProps) {
   return (
     <Box
       as="header"
-      borderBottom="1px solid"
-      borderColor="border"
       bg="gray.1"
       position="sticky"
       top="0"
