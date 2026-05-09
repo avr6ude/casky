@@ -5,6 +5,7 @@ import { CategorySidebar } from "@/components/CategorySidebar";
 import { CaskGrid } from "@/components/CaskGrid";
 import { CartBar } from "@/components/CartBar";
 import { AboutDialog } from "@/components/AboutDialog";
+import { ListsDialog } from "@/components/ListsDialog";
 import { Toaster } from "@/components/ui";
 import { useCatalogStore } from "@/store/catalog";
 import { useCartStore } from "@/store/cart";
@@ -15,6 +16,7 @@ export function App() {
   const cartCount = useCartStore((s) => s.tokens.length);
   const setAll = useCartStore((s) => s.setAll);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [listsOpen, setListsOpen] = useState(false);
 
   useEffect(() => {
     load();
@@ -33,7 +35,10 @@ export function App() {
       bg="gray.2"
       overflow="hidden"
     >
-      <AppHeader onAboutOpen={() => setAboutOpen(true)} />
+      <AppHeader
+        onAboutOpen={() => setAboutOpen(true)}
+        onListsOpen={() => setListsOpen(true)}
+      />
 
       <Flex flex="1" minH="0" w="full">
         <Box
@@ -60,6 +65,7 @@ export function App() {
 
       <CartBar />
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <ListsDialog open={listsOpen} onClose={() => setListsOpen(false)} />
       <Toaster />
     </Flex>
   );

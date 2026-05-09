@@ -6,6 +6,10 @@ import {
     brewfile,
     curlOneLiner,
     shareUrl,
+    cronOneLiner,
+    CRON_LABEL,
+    CRON_REMOVE,
+    type CronSchedule,
 } from "@/lib/outputFormatters";
 import { encodeCart } from "@/lib/shareEncoding";
 import { copyText } from "@/lib/clipboard";
@@ -57,14 +61,15 @@ const panelClass = css({
 
 const PanelInner = styled("div", {
   base: {
-    maxW: "5xl",
+    maxW: "7xl",
     mx: "auto",
     px: "4",
-    py: "4",
+    pt: "4",
+    pb: "0",
     display: "grid",
-    gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+    gridTemplateColumns: { base: "1fr", lg: "1fr 1fr 1fr" },
     gap: "4",
-    maxH: "60vh",
+    maxH: "80vh",
     overflowY: "auto",
   },
 });
@@ -201,10 +206,12 @@ export function CartBar() {
 
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [schedule, setSchedule] = useState<CronSchedule>("weekly");
 
   const command = useMemo(() => brewInstallCommand(tokens), [tokens]);
   const brewfileText = useMemo(() => brewfile(tokens), [tokens]);
   const curl = useMemo(() => curlOneLiner(tokens), [tokens]);
+  const cron = useMemo(() => cronOneLiner(schedule), [schedule]);
   const share = useMemo(() => {
     if (typeof window === "undefined") return "";
     return shareUrl(window.location.origin, encodeCart(tokens));
@@ -294,7 +301,7 @@ export function CartBar() {
               <PanelInner>
                 <Box>
                   <SectionLabel>Items ({items.length})</SectionLabel>
-                  <Box maxH="28rem" overflowY="auto" pr="1">
+                  <Box maxH="600px" overflowY="auto" pr="1">
                     <Stack as="ul" gap="1.5" listStyle="none" p="0" m="0">
                       {items.map((it) => (
                         <ItemRow key={it.token}>
@@ -358,6 +365,35 @@ export function CartBar() {
                     <BlockWithCopy text={share} icon={<LinkIcon size={12} />} />
                   </Box>
                 </Stack>
+
+                <Box>
+                  <SectionLabel>Schedule auto-update</SectionLabel>
+                  <Stack gap="2">
+                    <Box fontSize="xs" color="fg.muted" lineHeight="snug">
+                      Adds a cron job that runs <code>brew upgrade --cask</code> on a schedule.
+                    </Box>
+                    <Flex gap="1" wrap="wrap">
+                      {(["daily", "weekly", "monthly"] as CronSchedule[]).map((s) => (
+                        <Button
+                          key={s}
+                          size="xs"
+                          variant={schedule === s ? "solid" : "outline"}
+                          onClick={() => setSchedule(s)}
+                          aria-pressed={schedule === s}
+                        >
+                          {CRON_LABEL[s]}
+                        </Button>
+                      ))}
+                    </Flex>
+                    <BlockWithCopy text={cron} />
+                    <Box fontSize="xs" color="fg.muted" lineHeight="snug">
+                      Remove later:{" "}
+                      <Box as="code" fontFamily="mono" color="fg.subtle">
+                        {CRON_REMOVE}
+                      </Box>
+                    </Box>
+                  </Stack>
+                </Box>
               </PanelInner>
             </motion.div>
           )}
@@ -430,7 +466,7 @@ function BlockWithCopy({
   return (
     <Box position="relative">
       <CodeBlock>{text || "(empty)"}</CodeBlock>
-      <Box position="absolute" top="1.5" right="1.5">
+      <Box position="absolute" top="2" right="4">
         <IconButton
           size="xs"
           variant="solid"

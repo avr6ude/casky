@@ -30,3 +30,25 @@ export function shareUrl(origin: string, encoded: string): string {
   if (!encoded) return origin;
   return `${origin.replace(/\/$/, "")}/share/${encoded}`;
 }
+
+export type CronSchedule = "daily" | "weekly" | "monthly";
+
+const CRON_EXPR: Record<CronSchedule, string> = {
+  daily: "0 9 * * *",
+  weekly: "0 9 * * 1",
+  monthly: "0 9 1 * *",
+};
+
+export const CRON_LABEL: Record<CronSchedule, string> = {
+  daily: "Daily, 9am",
+  weekly: "Weekly, Mon 9am",
+  monthly: "Monthly, 1st 9am",
+};
+
+export function cronOneLiner(schedule: CronSchedule): string {
+  const expr = CRON_EXPR[schedule];
+  const job = `${expr} /bin/bash -lc "brew update -q && brew upgrade --cask -q" # casky`;
+  return `(crontab -l 2>/dev/null | grep -v '# casky'; echo '${job}') | crontab -`;
+}
+
+export const CRON_REMOVE = `crontab -l | grep -v '# casky' | crontab -`;

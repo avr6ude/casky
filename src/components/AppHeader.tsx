@@ -2,7 +2,7 @@ import { Button, IconButton, Input } from "@/components/ui";
 import { config } from "@/data/config";
 import { useColorMode } from "@/lib/colorMode";
 import { useFiltersStore } from "@/store/filters";
-import { Beer, Heart, Info, Moon, Search, Sun } from "lucide-react";
+import { Beer, Bookmark, Heart, Info, Moon, Search, Sun } from "lucide-react";
 import { Box, Flex, HStack, styled } from "styled-system/jsx";
 
 const Logo = styled("span", {
@@ -38,9 +38,10 @@ const Brand = styled("a", {
 
 interface AppHeaderProps {
   onAboutOpen: () => void;
+  onListsOpen: () => void;
 }
 
-export function AppHeader({ onAboutOpen }: AppHeaderProps) {
+export function AppHeader({ onAboutOpen, onListsOpen }: AppHeaderProps) {
   const query = useFiltersStore((s) => s.query);
   const setQuery = useFiltersStore((s) => s.setQuery);
   const { mode, toggle } = useColorMode();
@@ -72,6 +73,14 @@ export function AppHeader({ onAboutOpen }: AppHeaderProps) {
           </Brand>
 
           <HStack gap="2" display={{ base: "flex", md: "none" }}>
+            <IconButton
+              variant="outline"
+              size="sm"
+              aria-label="Saved lists"
+              onClick={onListsOpen}
+            >
+              <Bookmark size={14} />
+            </IconButton>
             <IconButton variant="outline" size="sm" aria-label="Tip jar" asChild>
               <a href={config.donateUrl} target="_blank" rel="noreferrer">
                 <Heart size={14} />
@@ -117,6 +126,11 @@ export function AppHeader({ onAboutOpen }: AppHeaderProps) {
         </Box>
 
         <HStack gap="2" display={{ base: "none", md: "flex" }}>
+          <Button variant="outline" size="sm" onClick={onListsOpen}>
+            <Bookmark size={14} />
+            Lists
+          </Button>
+
           <Button variant="outline" size="sm" asChild>
             <a href={config.donateUrl} target="_blank" rel="noreferrer">
               <Heart size={14} />
