@@ -4,7 +4,7 @@ import { IconButton, Badge, Tooltip } from "@/components/ui";
 import { Box, Flex, styled } from "styled-system/jsx";
 import { useCartStore } from "@/store/cart";
 import type { Cask } from "@/lib/caskTypes";
-import { formatVersion, formatCount, faviconUrl } from "@/lib/format";
+import { formatVersion, formatCount, faviconUrl, safeExternalUrl } from "@/lib/format";
 
 const Card = styled("article", {
   base: {
@@ -171,6 +171,7 @@ export function CaskCard({ cask }: CaskCardProps) {
   );
 
   const icon = useMemo(() => faviconUrl(cask.homepage), [cask.homepage]);
+  const safeHomepage = useMemo(() => safeExternalUrl(cask.homepage), [cask.homepage]);
   const versionLabel = formatVersion(cask.version);
   const countLabel = formatCount(cask.install_count);
 
@@ -234,14 +235,16 @@ export function CaskCard({ cask }: CaskCardProps) {
               deprecated
             </Badge>
           )}
-          <HomepageLink
-            href={cask.homepage}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open homepage"
-          >
-            <ExternalLink size={14} />
-          </HomepageLink>
+          {safeHomepage && (
+            <HomepageLink
+              href={safeHomepage}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open homepage"
+            >
+              <ExternalLink size={14} />
+            </HomepageLink>
+          )}
         </Flex>
       </Flex>
     </Card>

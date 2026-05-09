@@ -442,7 +442,9 @@ function BlockWithCopy({
           variant="solid"
           aria-label="Copy to clipboard"
           onClick={async () => {
-            await navigator.clipboard.writeText(text);
+            try {
+              await navigator.clipboard.writeText(text);
+            } catch {}
             setCopied(true);
           }}
         >

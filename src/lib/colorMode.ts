@@ -6,8 +6,10 @@ const STORAGE_KEY = "casky:color-mode";
 
 function readInitial(): ColorMode {
   if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {}
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
@@ -28,7 +30,9 @@ export function useColorMode() {
 
   useEffect(() => {
     apply(mode);
-    window.localStorage.setItem(STORAGE_KEY, mode);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, mode);
+    } catch {}
   }, [mode]);
 
   const toggle = () => setMode((m) => (m === "dark" ? "light" : "dark"));

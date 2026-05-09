@@ -16,7 +16,21 @@ export function faviconUrl(homepage: string | null | undefined): string | null {
   if (!homepage) return null;
   try {
     const u = new URL(homepage);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
     return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=128`;
+  } catch {
+    return null;
+  }
+}
+
+export function safeExternalUrl(
+  url: string | null | undefined,
+): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:" || u.protocol === "http:") return u.toString();
+    return null;
   } catch {
     return null;
   }
