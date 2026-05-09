@@ -10,5 +10,5 @@
     </g>
   </g>
   <text x="600" y="450" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="140" fill="#f3f4f6" font-weight="800" letter-spacing="-6">casky</text>
-  <text x="600" y="520" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="28" fill="#9ca3af">brew install --cask, in a web app</text>
+  <text x="600" y="520" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="28" fill="#9ca3af">Browse apps from Homebrew, install in one click.</text>
 </svg>
