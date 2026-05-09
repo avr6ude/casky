@@ -1,9 +1,7 @@
 import Fuse from "fuse.js";
 import type { Cask } from "./caskTypes";
 
-export type FuseInstance = Fuse<Cask>;
-
-export function createFuse(casks: Cask[]): FuseInstance {
+export function createFuse(casks: Cask[]) {
   return new Fuse(casks, {
     keys: [
       { name: "token", weight: 2 },

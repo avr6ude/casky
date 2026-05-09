@@ -49,7 +49,7 @@ export function useColorMode() {
 
   const toggle = () => setMode((m) => (m === "dark" ? "light" : "dark"));
 
-  return { mode, toggle, setMode };
+  return { mode, toggle };
 }
 
 export function bootstrapColorMode() {
