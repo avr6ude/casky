@@ -7,7 +7,9 @@ export const toast = defineSlotRecipe({
   base: {
     root: {
       alignItems: 'start',
-      background: 'gray.surface.bg',
+      background: 'gray.1',
+      border: '1px solid',
+      borderColor: 'border',
       borderRadius: 'l3',
       boxShadow: 'lg',
       display: 'flex',
