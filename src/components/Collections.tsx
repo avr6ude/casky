@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Check, Sparkles } from "lucide-react";
 import { Box, Flex, HStack, styled } from "styled-system/jsx";
-import { Button } from "@/components/ui";
+import { IconButton } from "@/components/ui";
 import { collections } from "@/data/collections";
 import { useCatalogStore } from "@/store/catalog";
 import { useCartStore } from "@/store/cart";
@@ -11,8 +11,9 @@ const Strip = styled("div", {
     display: "flex",
     gap: "3",
     overflowX: "auto",
-    overflowY: "hidden",
-    pb: "2",
+    overflowY: "visible",
+    pt: "2",
+    pb: "3",
     px: "4",
     scrollSnapType: "x mandatory",
     scrollbarWidth: "thin",
@@ -31,19 +32,20 @@ const Card = styled("button", {
     textAlign: "left",
     cursor: "pointer",
     scrollSnapAlign: "start",
-    transition: "border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease",
+    transition:
+      "border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease",
     _hover: {
       borderColor: "violet.7",
-      transform: "translateY(-1px)",
       boxShadow: "sm",
     },
   },
-});
-
-const Emoji = styled("span", {
-  base: {
-    fontSize: "2xl",
-    lineHeight: "1",
+  variants: {
+    added: {
+      true: {
+        borderColor: "violet.9",
+        bg: "violet.2",
+      },
+    },
   },
 });
 
@@ -52,7 +54,7 @@ const Title = styled("h3", {
     fontSize: "md",
     fontWeight: "semibold",
     color: "fg.default",
-    mt: "2",
+    lineHeight: "tight",
   },
 });
 
@@ -82,7 +84,7 @@ const Header = styled("div", {
     alignItems: "center",
     justifyContent: "space-between",
     px: "4",
-    pb: "2",
+    pb: "1",
   },
 });
 
@@ -106,13 +108,9 @@ export function Collections() {
     return (cs: string[]) => cs.filter((t) => set.has(t));
   }, [casks]);
 
-  if (casks.length === 0) return null;
+  const tokenSet = useMemo(() => new Set(tokens), [tokens]);
 
-  const handleAddAll = (cs: string[]) => {
-    const valid = validTokens(cs);
-    const merged = Array.from(new Set([...tokens, ...valid]));
-    setAll(merged);
-  };
+  if (casks.length === 0) return null;
 
   return (
     <Box mt="3">
@@ -121,27 +119,42 @@ export function Collections() {
           <Sparkles size={14} />
           <SectionTitle>Curated kits</SectionTitle>
         </HStack>
-        <Box fontSize="xs" color="fg.subtle">
-          one-click to add all
-        </Box>
       </Header>
       <Strip>
         {collections.map((c) => {
           const valid = validTokens(c.tokens);
+          const allAdded =
+            valid.length > 0 && valid.every((t) => tokenSet.has(t));
+
+          const handleClick = () => {
+            if (allAdded) {
+              setAll(tokens.filter((t) => !valid.includes(t)));
+            } else {
+              setAll(Array.from(new Set([...tokens, ...valid])));
+            }
+          };
+
           return (
-            <Card key={c.slug} onClick={() => handleAddAll(c.tokens)}>
-              <Flex justify="space-between" align="flex-start">
-                <Emoji>{c.emoji}</Emoji>
-                <Button size="xs" variant="solid" tabIndex={-1}>
-                  <Plus size={12} />
-                  Add
-                </Button>
+            <Card key={c.slug} added={allAdded} onClick={handleClick}>
+              <Flex justify="space-between" align="flex-start" gap="3">
+                <Box flex="1" minW="0">
+                  <Title>{c.title}</Title>
+                  <Desc>{c.desc}</Desc>
+                </Box>
+                <IconButton
+                  size="sm"
+                  variant={allAdded ? "solid" : "outline"}
+                  tabIndex={-1}
+                  aria-label={allAdded ? "Remove kit" : "Add kit"}
+                >
+                  {allAdded ? <Check size={14} /> : <Plus size={14} />}
+                </IconButton>
               </Flex>
-              <Title>{c.title}</Title>
-              <Desc>{c.desc}</Desc>
-              <Count>
-                {valid.length} {valid.length === 1 ? "app" : "apps"}
-              </Count>
+              <Box mt="3">
+                <Count>
+                  {valid.length} {valid.length === 1 ? "app" : "apps"}
+                </Count>
+              </Box>
             </Card>
           );
         })}

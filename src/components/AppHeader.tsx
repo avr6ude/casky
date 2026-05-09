@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { Search, Info, Sun, Moon, Heart } from "lucide-react";
 import { IconButton, Input, Button } from "@/components/ui";
 import { Box, Flex, HStack, styled } from "styled-system/jsx";
 import { useFiltersStore } from "@/store/filters";
 import { useColorMode } from "@/lib/colorMode";
-import { AboutDialog } from "./AboutDialog";
 import { config } from "@/data/config";
 
 const Logo = styled("span", {
@@ -28,11 +26,14 @@ const Brand = styled("a", {
   },
 });
 
-export function AppHeader() {
+interface AppHeaderProps {
+  onAboutOpen: () => void;
+}
+
+export function AppHeader({ onAboutOpen }: AppHeaderProps) {
   const query = useFiltersStore((s) => s.query);
   const setQuery = useFiltersStore((s) => s.setQuery);
   const { mode, toggle } = useColorMode();
-  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <Box
@@ -98,14 +99,12 @@ export function AppHeader() {
             variant="outline"
             size="sm"
             aria-label="About casky"
-            onClick={() => setAboutOpen(true)}
+            onClick={onAboutOpen}
           >
             <Info size={16} />
           </IconButton>
         </HStack>
       </Flex>
-
-      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </Box>
   );
 }

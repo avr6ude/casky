@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Box, Flex } from "styled-system/jsx";
 import { AppHeader } from "@/components/AppHeader";
 import { CategorySidebar } from "@/components/CategorySidebar";
 import { CaskGrid } from "@/components/CaskGrid";
 import { CartBar } from "@/components/CartBar";
+import { AboutDialog } from "@/components/AboutDialog";
 import { Toaster } from "@/components/ui";
 import { useCatalogStore } from "@/store/catalog";
 import { useCartStore } from "@/store/cart";
@@ -13,6 +14,7 @@ export function App() {
   const load = useCatalogStore((s) => s.load);
   const cartCount = useCartStore((s) => s.tokens.length);
   const setAll = useCartStore((s) => s.setAll);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   useEffect(() => {
     load();
@@ -31,7 +33,7 @@ export function App() {
       bg="gray.2"
       overflow="hidden"
     >
-      <AppHeader />
+      <AppHeader onAboutOpen={() => setAboutOpen(true)} />
 
       <Flex flex="1" minH="0" w="full">
         <Box
@@ -57,6 +59,7 @@ export function App() {
       </Flex>
 
       <CartBar />
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <Toaster />
     </Flex>
   );
