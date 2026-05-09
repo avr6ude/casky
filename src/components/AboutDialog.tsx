@@ -73,16 +73,6 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
                 </a>
               </Button>
               <Button variant="outline" asChild>
-                <a
-                  href={config.githubSponsorsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  GitHub Sponsors
-                  <ExternalLink size={12} />
-                </a>
-              </Button>
-              <Button variant="outline" asChild>
                 <a href={config.repoUrl} target="_blank" rel="noreferrer">
                   <Code2 size={16} />
                   Source

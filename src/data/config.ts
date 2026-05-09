@@ -1,6 +1,5 @@
 export const config = {
-  donateUrl: "https://buymeacoffee.com/casky",
-  githubSponsorsUrl: "https://github.com/sponsors/casky",
+  donateUrl: "https://ko-fi.com/avrdude",
   repoUrl: "https://github.com/casky",
   homepage: "https://casky.app",
 };

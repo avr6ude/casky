@@ -9,6 +9,7 @@ import { useCartStore } from "@/store/cart";
 const Strip = styled("div", {
   base: {
     display: "flex",
+    alignItems: "stretch",
     gap: "3",
     overflowX: "auto",
     overflowY: "visible",
@@ -16,8 +17,14 @@ const Strip = styled("div", {
     pb: "3",
     px: "4",
     scrollSnapType: "x mandatory",
-    scrollbarWidth: "thin",
-  },
+    scrollPaddingInlineStart: "4",
+    scrollPaddingInlineEnd: "4",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    "&::-webkit-scrollbar": {
+      display: "none",
+    },
+  } as never,
 });
 
 const Card = styled("button", {
@@ -32,6 +39,8 @@ const Card = styled("button", {
     textAlign: "left",
     cursor: "pointer",
     scrollSnapAlign: "start",
+    display: "flex",
+    flexDirection: "column",
     transition:
       "border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease",
     _hover: {
@@ -150,7 +159,7 @@ export function Collections() {
                   {allAdded ? <Check size={14} /> : <Plus size={14} />}
                 </IconButton>
               </Flex>
-              <Box mt="3">
+              <Box mt="auto" pt="3">
                 <Count>
                   {valid.length} {valid.length === 1 ? "app" : "apps"}
                 </Count>
