@@ -8,6 +8,7 @@ import {
     shareUrl,
 } from "@/lib/outputFormatters";
 import { encodeCart } from "@/lib/shareEncoding";
+import { copyText } from "@/lib/clipboard";
 import { useCartStore } from "@/store/cart";
 import { useCatalogStore } from "@/store/catalog";
 import { AnimatePresence, motion } from "framer-motion";
@@ -243,20 +244,8 @@ export function CartBar() {
   if (tokens.length === 0) return null;
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(command);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = command;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand("copy");
-      } catch {}
-      document.body.removeChild(ta);
-    }
+    const ok = await copyText(command);
+    if (!ok) return;
     setCopied(true);
     if (!tipNudgeShown) {
       tipNudgeShown = true;
@@ -442,10 +431,8 @@ function BlockWithCopy({
           variant="solid"
           aria-label="Copy to clipboard"
           onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(text);
-            } catch {}
-            setCopied(true);
+            const ok = await copyText(text);
+            if (ok) setCopied(true);
           }}
         >
           {copied ? <Check size={12} /> : icon ?? <Copy size={12} />}

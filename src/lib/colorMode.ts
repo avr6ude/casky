@@ -4,12 +4,26 @@ export type ColorMode = "light" | "dark";
 
 const STORAGE_KEY = "casky:color-mode";
 
+function readStored(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(mode: ColorMode): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, mode);
+  } catch {
+    return;
+  }
+}
+
 function readInitial(): ColorMode {
   if (typeof window === "undefined") return "light";
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark") return stored;
-  } catch {}
+  const stored = readStored();
+  if (stored === "light" || stored === "dark") return stored;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
@@ -30,9 +44,7 @@ export function useColorMode() {
 
   useEffect(() => {
     apply(mode);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, mode);
-    } catch {}
+    writeStored(mode);
   }, [mode]);
 
   const toggle = () => setMode((m) => (m === "dark" ? "light" : "dark"));
