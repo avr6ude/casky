@@ -7,11 +7,13 @@ import { Box, Flex, HStack, styled } from "styled-system/jsx";
 
 const Logo = styled("span", {
   base: {
-    fontFamily: '"Pacifico", cursive',
-    fontSize: "xl",
+    fontFamily: '"Bricolage Grotesque", system-ui, sans-serif',
+    fontSize: "2xl",
+    fontWeight: "800",
+    letterSpacing: "-0.04em",
+    fontVariationSettings: '"opsz" 96',
     color: "fg.default",
     lineHeight: "1",
-    pb: "1",
   },
 });
 
