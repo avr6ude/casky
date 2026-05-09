@@ -8,6 +8,7 @@ import { VirtuosoGrid } from "react-virtuoso";
 import { Box, Stack, styled } from "styled-system/jsx";
 import { CaskCard } from "./CaskCard";
 import { CaskDetailDrawer } from "./CaskDetailDrawer";
+import { Collections } from "./Collections";
 
 const GridListInner = styled("div", {
   base: {
@@ -29,7 +30,13 @@ const GridList = forwardRef<HTMLDivElement, ComponentPropsWithRef<"div">>(
   },
 );
 
-const TopSpacer = () => <div style={{ marginTop: 16 }} />;
+function TopSlot() {
+  return (
+    <div style={{ paddingTop: 16, paddingBottom: 16 }}>
+      <Collections />
+    </div>
+  );
+}
 
 function BottomSpacer() {
   return <div style={{ height: 24 }} />;
@@ -89,7 +96,7 @@ export function CaskGrid() {
           data={filtered}
           components={{
             List: GridList,
-            Header: TopSpacer,
+            Header: TopSlot,
             Footer: BottomSpacer,
           }}
           itemContent={(_, cask) => (

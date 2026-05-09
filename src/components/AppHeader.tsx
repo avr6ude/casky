@@ -1,7 +1,11 @@
-import { Search, BookOpen } from "lucide-react";
-import { IconButton, Input } from "@/components/ui";
-import { Box, Flex, styled } from "styled-system/jsx";
+import { useState } from "react";
+import { Search, Info, Sun, Moon, Heart } from "lucide-react";
+import { IconButton, Input, Button } from "@/components/ui";
+import { Box, Flex, HStack, styled } from "styled-system/jsx";
 import { useFiltersStore } from "@/store/filters";
+import { useColorMode } from "@/lib/colorMode";
+import { AboutDialog } from "./AboutDialog";
+import { config } from "@/data/config";
 
 const Logo = styled("span", {
   base: {
@@ -27,6 +31,8 @@ const Brand = styled("a", {
 export function AppHeader() {
   const query = useFiltersStore((s) => s.query);
   const setQuery = useFiltersStore((s) => s.setQuery);
+  const { mode, toggle } = useColorMode();
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <Box
@@ -71,12 +77,35 @@ export function AppHeader() {
           />
         </Box>
 
-        <IconButton variant="outline" aria-label="About casky" asChild>
-          <a href="/about">
-            <BookOpen size={18} />
-          </a>
-        </IconButton>
+        <HStack gap="2">
+          <Button variant="outline" size="sm" asChild>
+            <a href={config.donateUrl} target="_blank" rel="noreferrer">
+              <Heart size={14} />
+              <Box display={{ base: "none", md: "inline" }}>Donate</Box>
+            </a>
+          </Button>
+
+          <IconButton
+            variant="outline"
+            size="sm"
+            aria-label={`Switch to ${mode === "dark" ? "light" : "dark"} mode`}
+            onClick={toggle}
+          >
+            {mode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </IconButton>
+
+          <IconButton
+            variant="outline"
+            size="sm"
+            aria-label="About casky"
+            onClick={() => setAboutOpen(true)}
+          >
+            <Info size={16} />
+          </IconButton>
+        </HStack>
       </Flex>
+
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </Box>
   );
 }

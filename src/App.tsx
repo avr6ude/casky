@@ -7,14 +7,21 @@ import { CartBar } from "@/components/CartBar";
 import { Toaster } from "@/components/ui";
 import { useCatalogStore } from "@/store/catalog";
 import { useCartStore } from "@/store/cart";
+import { readSharedTokensFromLocation, clearShareFromUrl } from "@/lib/sharePath";
 
 export function App() {
   const load = useCatalogStore((s) => s.load);
   const cartCount = useCartStore((s) => s.tokens.length);
+  const setAll = useCartStore((s) => s.setAll);
 
   useEffect(() => {
     load();
-  }, [load]);
+    const shared = readSharedTokensFromLocation();
+    if (shared) {
+      setAll(shared);
+      clearShareFromUrl();
+    }
+  }, [load, setAll]);
 
   return (
     <Flex
