@@ -43,7 +43,7 @@ export function App() {
           minH="0"
           h="full"
           bg="gray.2"
-          pb={cartCount > 0 ? "24" : "0"}
+          pb={cartCount > 0 ? "16" : "0"}
         >
           <CaskGrid />
         </Box>

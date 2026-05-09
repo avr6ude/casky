@@ -66,8 +66,6 @@ const PanelInner = styled("div", {
 const Bar = styled("div", {
   base: {
     bg: "gray.1",
-    borderTop: "1px solid",
-    borderColor: "border",
     backdropFilter: "blur(12px)",
   },
 });
@@ -122,7 +120,9 @@ const CodeBlock = styled("pre", {
     fontSize: "xs",
     color: "fg.default",
     bg: "gray.2",
-    p: "3",
+    pl: "3",
+    pr: "10",
+    py: "3",
     borderRadius: "l2",
     overflow: "auto",
     whiteSpace: "pre-wrap",

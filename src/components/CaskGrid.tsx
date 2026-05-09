@@ -19,6 +19,7 @@ const GridListInner = styled("div", {
       xl: "repeat(4, minmax(0, 1fr))",
     },
     gap: "3",
+    px: "4",
   },
 });
 
@@ -29,6 +30,10 @@ const GridList = forwardRef<HTMLDivElement, ComponentPropsWithRef<"div">>(
 );
 
 const TopSpacer = () => <div style={{ marginTop: 16 }} />;
+
+function BottomSpacer() {
+  return <div style={{ height: 24 }} />;
+}
 
 const Empty = styled("div", {
   base: {
@@ -78,11 +83,15 @@ export function CaskGrid() {
 
   return (
     <>
-      <Box h="full" minH="0" px="4" pb="4" boxSizing="border-box">
+      <Box h="full" minH="0">
         <VirtuosoGrid
           style={{ height: "100%" }}
           data={filtered}
-          components={{ List: GridList, Header: TopSpacer }}
+          components={{
+            List: GridList,
+            Header: TopSpacer,
+            Footer: BottomSpacer,
+          }}
           itemContent={(_, cask) => (
             <CaskCard cask={cask} onOpen={setOpenCask} />
           )}
