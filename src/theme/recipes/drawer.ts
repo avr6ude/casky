@@ -176,10 +176,11 @@ export const drawer = defineSlotRecipe({
       },
       top: {
         positioner: {
-          justifyContent: 'stretch',
+          justifyContent: 'center',
           alignItems: 'flex-start',
         },
         content: {
+          width: '100%',
           maxW: '100%',
           _open: { animationName: 'slide-from-top-full, fade-in' },
           _closed: { animationName: 'slide-to-top-full, fade-out' },
@@ -188,10 +189,11 @@ export const drawer = defineSlotRecipe({
 
       bottom: {
         positioner: {
-          justifyContent: 'stretch',
+          justifyContent: 'center',
           alignItems: 'flex-end',
         },
         content: {
+          width: '100%',
           maxW: '100%',
           _open: { animationName: 'slide-from-bottom-full, fade-in' },
           _closed: { animationName: 'slide-to-bottom-full, fade-out' },

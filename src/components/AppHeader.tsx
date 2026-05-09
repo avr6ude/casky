@@ -1,8 +1,7 @@
-import { Search, ShoppingBag, BookOpen } from "lucide-react";
-import { Button, IconButton, Input } from "@/components/ui";
-import { Box, Flex, HStack, styled } from "styled-system/jsx";
+import { Search, BookOpen } from "lucide-react";
+import { IconButton, Input } from "@/components/ui";
+import { Box, Flex, styled } from "styled-system/jsx";
 import { useFiltersStore } from "@/store/filters";
-import { useCartStore } from "@/store/cart";
 
 const Logo = styled("span", {
   base: {
@@ -25,34 +24,9 @@ const Brand = styled("a", {
   },
 });
 
-const CartBadge = styled("span", {
-  base: {
-    position: "absolute",
-    top: "-1",
-    right: "-1",
-    minW: "5",
-    h: "5",
-    px: "1",
-    bg: "violet.9",
-    color: "white",
-    borderRadius: "full",
-    fontSize: "xs",
-    fontWeight: "bold",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: "1",
-  },
-});
-
-interface AppHeaderProps {
-  onCartOpen: () => void;
-}
-
-export function AppHeader({ onCartOpen }: AppHeaderProps) {
+export function AppHeader() {
   const query = useFiltersStore((s) => s.query);
   const setQuery = useFiltersStore((s) => s.setQuery);
-  const cartCount = useCartStore((s) => s.tokens.length);
 
   return (
     <Box
@@ -97,21 +71,11 @@ export function AppHeader({ onCartOpen }: AppHeaderProps) {
           />
         </Box>
 
-        <HStack gap="2">
-          <IconButton variant="outline" aria-label="About casky" asChild>
-            <a href="/about">
-              <BookOpen size={18} />
-            </a>
-          </IconButton>
-
-          <Box position="relative">
-            <Button onClick={onCartOpen} variant="solid" size="sm">
-              <ShoppingBag size={16} />
-              Cart
-            </Button>
-            {cartCount > 0 && <CartBadge>{cartCount}</CartBadge>}
-          </Box>
-        </HStack>
+        <IconButton variant="outline" aria-label="About casky" asChild>
+          <a href="/about">
+            <BookOpen size={18} />
+          </a>
+        </IconButton>
       </Flex>
     </Box>
   );
