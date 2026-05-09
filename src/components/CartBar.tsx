@@ -256,7 +256,8 @@ export function CartBar() {
         duration: 8000,
         action: {
           label: "Tip jar",
-          onClick: () => window.open(config.donateUrl, "_blank"),
+          onClick: () =>
+            window.open(config.donateUrl, "_blank", "noopener,noreferrer"),
         },
         closable: true,
       });
