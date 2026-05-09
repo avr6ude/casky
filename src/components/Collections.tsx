@@ -134,6 +134,15 @@ export function Collections() {
 
   const tokenSet = useMemo(() => new Set(tokens), [tokens]);
 
+  const selectedKits = useMemo(
+    () =>
+      collections.filter((c) => {
+        const v = validTokens(c.tokens);
+        return v.length > 0 && v.every((t) => tokenSet.has(t));
+      }),
+    [validTokens, tokenSet],
+  );
+
   if (casks.length === 0) return null;
 
   return (
@@ -161,15 +170,19 @@ export function Collections() {
       <Strip>
         {collections.map((c) => {
           const valid = validTokens(c.tokens);
-          const allAdded =
-            valid.length > 0 && valid.every((t) => tokenSet.has(t));
+          const allAdded = selectedKits.includes(c);
 
           const handleClick = () => {
-            if (allAdded) {
-              setAll(tokens.filter((t) => !valid.includes(t)));
-            } else {
-              setAll(Array.from(new Set([...tokens, ...valid])));
+            if (!allAdded) {
+              setAll([...new Set([...tokens, ...valid])]);
+              return;
             }
+            const keep = new Set(
+              selectedKits.flatMap((o) =>
+                o.slug === c.slug ? [] : validTokens(o.tokens),
+              ),
+            );
+            setAll(tokens.filter((t) => !valid.includes(t) || keep.has(t)));
           };
 
           return (

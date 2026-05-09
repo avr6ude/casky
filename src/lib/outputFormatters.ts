@@ -23,7 +23,7 @@ export function curlOneLiner(tokens: string[]): string {
     `NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`;
   const sourceBrew =
     `eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"`;
-  return `command -v brew >/dev/null || ( ${installBrew} && ${sourceBrew} ) && brew install --cask ${list}`;
+  return `command -v brew >/dev/null || ( ${installBrew} && ${sourceBrew} ) && brew install --quiet --cask ${list}`;
 }
 
 export function shareUrl(origin: string, encoded: string): string {
