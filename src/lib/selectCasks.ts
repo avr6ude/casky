@@ -4,6 +4,8 @@ import { useFiltersStore } from "@/store/filters";
 import { createFuse } from "@/lib/fuzzy";
 import type { Cask } from "@/lib/caskTypes";
 
+const MAX_RESULTS = 300;
+
 export function useFilteredCasks(): Cask[] {
   const casks = useCatalogStore((s) => s.casks);
   const query = useFiltersStore((s) => s.query);
@@ -20,15 +22,7 @@ export function useFilteredCasks(): Cask[] {
     return p;
   }, [casks, hideDeprecated, category]);
 
-  const fuse = useMemo(() => createFuse(pool), [pool]);
-
-  return useMemo(() => {
-    const trimmed = deferredQuery.trim();
-
-    if (trimmed.length >= 2) {
-      return fuse.search(trimmed).map((h) => h.item);
-    }
-
+  const sortedPool = useMemo(() => {
     const sorted = [...pool];
     switch (sort) {
       case "alpha":
@@ -44,5 +38,15 @@ export function useFilteredCasks(): Cask[] {
         sorted.sort((a, b) => (b.install_count ?? 0) - (a.install_count ?? 0));
     }
     return sorted;
-  }, [pool, fuse, deferredQuery, sort]);
+  }, [pool, sort]);
+
+  const fuse = useMemo(() => createFuse(pool), [pool]);
+
+  return useMemo(() => {
+    const trimmed = deferredQuery.trim();
+    if (trimmed.length >= 2) {
+      return fuse.search(trimmed, { limit: MAX_RESULTS }).map((h) => h.item);
+    }
+    return sortedPool;
+  }, [sortedPool, fuse, deferredQuery]);
 }

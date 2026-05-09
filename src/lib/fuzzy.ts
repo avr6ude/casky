@@ -8,10 +8,12 @@ export function createFuse(casks: Cask[]): FuseInstance {
     keys: [
       { name: "token", weight: 2 },
       { name: "name", weight: 1.5 },
-      { name: "desc", weight: 0.7 },
     ],
-    threshold: 0.35,
+    threshold: 0.3,
     ignoreLocation: true,
     minMatchCharLength: 2,
+    shouldSort: true,
+    findAllMatches: false,
+    distance: 50,
   });
 }

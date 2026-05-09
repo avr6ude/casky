@@ -18,11 +18,10 @@ const Card = styled("article", {
     borderRadius: "l3",
     cursor: "pointer",
     minH: "44",
-    transition: "border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease",
+    transition: "border-color 80ms linear",
+    willChange: "border-color",
     _hover: {
       borderColor: "violet.7",
-      transform: "translateY(-1px)",
-      boxShadow: "sm",
     },
   },
   variants: {
