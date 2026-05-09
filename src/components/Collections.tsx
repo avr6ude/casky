@@ -1,11 +1,20 @@
 import { useMemo } from "react";
-import { Plus, Check, Sparkles, Info } from "lucide-react";
+import { Plus, Check, Sparkles, Info, Star, X } from "lucide-react";
 import { Box, Flex, HStack, styled } from "styled-system/jsx";
 import { IconButton, Tooltip } from "@/components/ui";
 import { collections } from "@/data/collections";
 import { useCatalogStore } from "@/store/catalog";
 import { useCartStore } from "@/store/cart";
+import { useListsStore } from "@/store/lists";
 import { config } from "@/data/config";
+
+type Kit = {
+  slug: string;
+  title: string;
+  desc: string;
+  tokens: string[];
+  user?: { listId: string };
+};
 
 const Strip = styled("div", {
   base: {
@@ -61,7 +70,23 @@ const Card = styled("div", {
         bg: "violet.2",
       },
     },
+    isUser: {
+      true: {
+        borderStyle: "dashed",
+        borderColor: "violet.7",
+      },
+    },
   },
+  compoundVariants: [
+    {
+      isUser: true,
+      added: true,
+      css: {
+        borderStyle: "solid",
+        borderColor: "violet.9",
+      },
+    },
+  ],
 });
 
 const Title = styled("h3", {
@@ -126,6 +151,8 @@ export function Collections() {
   const casks = useCatalogStore((s) => s.casks);
   const setAll = useCartStore((s) => s.setAll);
   const tokens = useCartStore((s) => s.tokens);
+  const lists = useListsStore((s) => s.lists);
+  const removeList = useListsStore((s) => s.remove);
 
   const validTokens = useMemo(() => {
     const set = new Set(casks.map((c) => c.token));
@@ -134,13 +161,27 @@ export function Collections() {
 
   const tokenSet = useMemo(() => new Set(tokens), [tokens]);
 
+  const allKits: Kit[] = useMemo(
+    () => [
+      ...lists.map((l) => ({
+        slug: `user-${l.id}`,
+        title: l.name,
+        desc: `${l.tokens.length} ${l.tokens.length === 1 ? "app" : "apps"} · saved by you`,
+        tokens: l.tokens,
+        user: { listId: l.id },
+      })),
+      ...collections,
+    ],
+    [lists],
+  );
+
   const selectedKits = useMemo(
     () =>
-      collections.filter((c) => {
+      allKits.filter((c) => {
         const v = validTokens(c.tokens);
         return v.length > 0 && v.every((t) => tokenSet.has(t));
       }),
-    [validTokens, tokenSet],
+    [allKits, validTokens, tokenSet],
   );
 
   if (casks.length === 0) return null;
@@ -168,7 +209,7 @@ export function Collections() {
         </HStack>
       </Header>
       <Strip>
-        {collections.map((c) => {
+        {allKits.map((c) => {
           const valid = validTokens(c.tokens);
           const allAdded = selectedKits.includes(c);
 
@@ -189,6 +230,7 @@ export function Collections() {
             <Card
               key={c.slug}
               added={allAdded}
+              isUser={!!c.user}
               onClick={handleClick}
               role="button"
               tabIndex={0}
@@ -203,20 +245,38 @@ export function Collections() {
             >
               <Flex justify="space-between" align="flex-start" gap="3">
                 <Box flex="1" minW="0">
-                  <Title>{c.title}</Title>
+                  <Flex align="center" gap="1.5">
+                    {c.user && <Star size={12} color="currentColor" fill="currentColor" />}
+                    <Title>{c.title}</Title>
+                  </Flex>
                   <Desc>{c.desc}</Desc>
                 </Box>
-                <IconButton
-                  size="sm"
-                  variant={allAdded ? "solid" : "outline"}
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  asChild
-                >
-                  <span>
-                    {allAdded ? <Check size={14} /> : <Plus size={14} />}
-                  </span>
-                </IconButton>
+                <Flex gap="1" flexShrink="0">
+                  {c.user && (
+                    <IconButton
+                      size="sm"
+                      variant="plain"
+                      aria-label={`Delete kit: ${c.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (c.user) removeList(c.user.listId);
+                      }}
+                    >
+                      <X size={14} />
+                    </IconButton>
+                  )}
+                  <IconButton
+                    size="sm"
+                    variant={allAdded ? "solid" : "outline"}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    asChild
+                  >
+                    <span>
+                      {allAdded ? <Check size={14} /> : <Plus size={14} />}
+                    </span>
+                  </IconButton>
+                </Flex>
               </Flex>
               <Box mt="auto" pt="3">
                 <Count>
