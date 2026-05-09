@@ -330,6 +330,10 @@ export function CartBar() {
                   <Box>
                     <SectionLabel>Brewfile</SectionLabel>
                     <Stack gap="2">
+                      <Box fontSize="xs" color="fg.muted" lineHeight="snug">
+                        Download saves to <code>~/Downloads</code>. Then run{" "}
+                        <code>cd ~/Downloads && brew bundle</code>.
+                      </Box>
                       <BlockWithCopy text={brewfileText} />
                       <Box>
                         <Button
@@ -444,7 +448,7 @@ function BlockWithCopy({
 }
 
 function downloadText(filename: string, text: string) {
-  const blob = new Blob([text], { type: "text/plain" });
+  const blob = new Blob([text], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
