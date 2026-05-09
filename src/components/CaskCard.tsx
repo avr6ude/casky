@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Plus, Check, ExternalLink, Download, Package } from "lucide-react";
-import { IconButton, Badge } from "@/components/ui";
+import { IconButton, Badge, Tooltip } from "@/components/ui";
 import { Box, Flex, styled } from "styled-system/jsx";
 import { useCartStore } from "@/store/cart";
 import type { Cask } from "@/lib/caskTypes";
@@ -109,27 +109,34 @@ const HomepageLink = styled("a", {
   },
 });
 
-const Favicon = styled("img", {
+const FaviconFrame = styled("div", {
   base: {
-    w: "8",
-    h: "8",
-    borderRadius: "l1",
-    flexShrink: "0",
-    objectFit: "contain",
-  },
-});
-
-const FaviconFallback = styled("div", {
-  base: {
-    w: "8",
-    h: "8",
-    borderRadius: "l1",
-    bg: "gray.3",
-    color: "fg.subtle",
+    w: "12",
+    h: "12",
+    borderRadius: "l2",
+    bg: "white",
+    p: "1.5",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: "0",
+  },
+  variants: {
+    fallback: {
+      true: {
+        bg: "gray.3",
+        color: "fg.subtle",
+      },
+    },
+  },
+});
+
+const FaviconImg = styled("img", {
+  base: {
+    w: "full",
+    h: "full",
+    objectFit: "contain",
+    display: "block",
   },
 });
 
@@ -183,19 +190,21 @@ export function CaskCard({ cask, onOpen }: CaskCardProps) {
       tabIndex={0}
       aria-label={`${displayName} — open detail`}
     >
-      <Flex justify="space-between" align="flex-start" gap="2">
-        <Flex minW="0" flex="1" gap="2.5" align="flex-start">
+      <Flex justify="space-between" align="center" gap="2">
+        <Flex minW="0" flex="1" gap="2.5" align="center">
           {icon && !iconFailed ? (
-            <Favicon
-              src={icon}
-              alt=""
-              loading="lazy"
-              onError={() => setIconFailed(true)}
-            />
+            <FaviconFrame>
+              <FaviconImg
+                src={icon}
+                alt=""
+                loading="lazy"
+                onError={() => setIconFailed(true)}
+              />
+            </FaviconFrame>
           ) : (
-            <FaviconFallback>
-              <Package size={16} />
-            </FaviconFallback>
+            <FaviconFrame fallback>
+              <Package size={20} />
+            </FaviconFrame>
           )}
           <Box minW="0" flex="1">
             <Title>{displayName}</Title>
@@ -219,9 +228,13 @@ export function CaskCard({ cask, onOpen }: CaskCardProps) {
 
       <Flex justify="space-between" align="center" mt="auto" pt="1" gap="2">
         <Flex align="center" gap="2.5" minW="0" overflow="hidden">
-          <VersionPill title={cask.version || ""}>
-            {versionLabel || "—"}
-          </VersionPill>
+          {cask.version ? (
+            <Tooltip content={cask.version} openDelay={200} closeDelay={0}>
+              <VersionPill>{versionLabel}</VersionPill>
+            </Tooltip>
+          ) : (
+            <VersionPill>—</VersionPill>
+          )}
           <Meta title={`${cask.install_count ?? 0} installs in last 365d`}>
             <Download size={12} />
             {countLabel}

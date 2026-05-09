@@ -16,7 +16,7 @@ export function faviconUrl(homepage: string | null | undefined): string | null {
   if (!homepage) return null;
   try {
     const u = new URL(homepage);
-    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=128`;
   } catch {
     return null;
   }
