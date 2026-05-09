@@ -16,13 +16,9 @@ const Card = styled("article", {
     border: "1px solid",
     borderColor: "border",
     borderRadius: "l3",
-    cursor: "pointer",
     minH: "44",
     transition: "border-color 80ms linear",
     willChange: "border-color",
-    _hover: {
-      borderColor: "violet.7",
-    },
   },
   variants: {
     selected: {
@@ -162,10 +158,9 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 interface CaskCardProps {
   cask: Cask;
-  onOpen: (cask: Cask) => void;
 }
 
-export function CaskCard({ cask, onOpen }: CaskCardProps) {
+export function CaskCard({ cask }: CaskCardProps) {
   const has = useCartStore((s) => s.tokens.includes(cask.token));
   const toggle = useCartStore((s) => s.toggle);
   const [iconFailed, setIconFailed] = useState(false);
@@ -180,15 +175,7 @@ export function CaskCard({ cask, onOpen }: CaskCardProps) {
   const countLabel = formatCount(cask.install_count);
 
   return (
-    <Card
-      selected={has}
-      onClick={() => onOpen(cask)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onOpen(cask);
-      }}
-      tabIndex={0}
-      aria-label={`${displayName} — open detail`}
-    >
+    <Card selected={has} aria-label={displayName}>
       <Flex justify="space-between" align="center" gap="2">
         <Flex minW="0" flex="1" gap="2.5" align="center">
           {icon && !iconFailed ? (
@@ -214,10 +201,7 @@ export function CaskCard({ cask, onOpen }: CaskCardProps) {
           aria-label={has ? "Remove from cart" : "Add to cart"}
           variant={has ? "solid" : "outline"}
           size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggle(cask.token);
-          }}
+          onClick={() => toggle(cask.token)}
         >
           {has ? <Check size={16} /> : <Plus size={16} />}
         </IconButton>
@@ -254,7 +238,6 @@ export function CaskCard({ cask, onOpen }: CaskCardProps) {
             href={cask.homepage}
             target="_blank"
             rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
             aria-label="Open homepage"
           >
             <ExternalLink size={14} />

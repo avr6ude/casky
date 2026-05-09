@@ -1,6 +1,6 @@
 import { Dialog, Button, CloseButton } from "@/components/ui";
 import { Box, Flex, Stack, styled } from "styled-system/jsx";
-import { Heart, ExternalLink } from "lucide-react";
+import { Heart, ExternalLink, Code2 } from "lucide-react";
 import { config } from "@/data/config";
 
 const Body = styled("p", {
@@ -80,6 +80,12 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
                 >
                   GitHub Sponsors
                   <ExternalLink size={12} />
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a href={config.repoUrl} target="_blank" rel="noreferrer">
+                  <Code2 size={16} />
+                  Source
                 </a>
               </Button>
             </Flex>

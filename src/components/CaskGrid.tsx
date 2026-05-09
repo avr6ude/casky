@@ -1,13 +1,11 @@
 import { Skeleton } from "@/components/ui";
-import type { Cask } from "@/lib/caskTypes";
 import { useFilteredCasks } from "@/lib/selectCasks";
 import { useCatalogStore } from "@/store/catalog";
 import type { ComponentPropsWithRef } from "react";
-import { forwardRef, useMemo, useState } from "react";
+import { forwardRef, useMemo } from "react";
 import { VirtuosoGrid } from "react-virtuoso";
 import { Box, Stack, styled } from "styled-system/jsx";
 import { CaskCard } from "./CaskCard";
-import { CaskDetailDrawer } from "./CaskDetailDrawer";
 import { Collections } from "./Collections";
 
 const GridListInner = styled("div", {
@@ -53,7 +51,6 @@ const Empty = styled("div", {
 export function CaskGrid() {
   const status = useCatalogStore((s) => s.status);
   const filtered = useFilteredCasks();
-  const [openCask, setOpenCask] = useState<Cask | null>(null);
 
   const skeletons = useMemo(() => Array.from({ length: 12 }, (_, i) => i), []);
 
@@ -89,23 +86,18 @@ export function CaskGrid() {
   }
 
   return (
-    <>
-      <Box h="full" minH="0">
-        <VirtuosoGrid
-          style={{ height: "100%" }}
-          data={filtered}
-          components={{
-            List: GridList,
-            Header: TopSlot,
-            Footer: BottomSpacer,
-          }}
-          itemContent={(_, cask) => (
-            <CaskCard cask={cask} onOpen={setOpenCask} />
-          )}
-          overscan={400}
-        />
-      </Box>
-      <CaskDetailDrawer cask={openCask} onClose={() => setOpenCask(null)} />
-    </>
+    <Box h="full" minH="0">
+      <VirtuosoGrid
+        style={{ height: "100%" }}
+        data={filtered}
+        components={{
+          List: GridList,
+          Header: TopSlot,
+          Footer: BottomSpacer,
+        }}
+        itemContent={(_, cask) => <CaskCard cask={cask} />}
+        overscan={400}
+      />
+    </Box>
   );
 }
