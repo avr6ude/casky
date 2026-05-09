@@ -1,6 +1,6 @@
 # casky
 
-Browse Homebrew Casks, build a cart, get a one-line install command. Free, no tracking, no cookies.
+Web UI over the Homebrew Cask catalog. Pick apps from the grid, get back a `brew install --cask` line, a Brewfile, or a curl one-liner that bootstraps Homebrew if missing.
 
 A modern revival of the dead `macapps.link` idea, built on top of the live Homebrew catalog.
 
