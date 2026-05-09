@@ -28,7 +28,7 @@ const Strip = styled("div", {
   } as never,
 });
 
-const Card = styled("button", {
+const Card = styled("div", {
   base: {
     flexShrink: "0",
     w: "64",
@@ -47,6 +47,11 @@ const Card = styled("button", {
     _hover: {
       borderColor: "violet.7",
       boxShadow: "sm",
+    },
+    _focusVisible: {
+      outline: "2px solid",
+      outlineColor: "violet.9",
+      outlineOffset: "2px",
     },
   },
   variants: {
@@ -168,7 +173,21 @@ export function Collections() {
           };
 
           return (
-            <Card key={c.slug} added={allAdded} onClick={handleClick}>
+            <Card
+              key={c.slug}
+              added={allAdded}
+              onClick={handleClick}
+              role="button"
+              tabIndex={0}
+              aria-pressed={allAdded}
+              aria-label={`${allAdded ? "Remove" : "Add"} kit: ${c.title}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleClick();
+                }
+              }}
+            >
               <Flex justify="space-between" align="flex-start" gap="3">
                 <Box flex="1" minW="0">
                   <Title>{c.title}</Title>
@@ -178,9 +197,12 @@ export function Collections() {
                   size="sm"
                   variant={allAdded ? "solid" : "outline"}
                   tabIndex={-1}
-                  aria-label={allAdded ? "Remove kit" : "Add kit"}
+                  aria-hidden="true"
+                  asChild
                 >
-                  {allAdded ? <Check size={14} /> : <Plus size={14} />}
+                  <span>
+                    {allAdded ? <Check size={14} /> : <Plus size={14} />}
+                  </span>
                 </IconButton>
               </Flex>
               <Box mt="auto" pt="3">
