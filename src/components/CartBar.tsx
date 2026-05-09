@@ -1,27 +1,32 @@
-import { useState, useMemo, useEffect } from "react";
-import { Box, Flex, Stack, styled } from "styled-system/jsx";
-import { css } from "styled-system/css";
-import { Button, IconButton, Badge } from "@/components/ui";
+import { Badge, Button, IconButton, toaster } from "@/components/ui";
+import { config } from "@/data/config";
+import { faviconUrl } from "@/lib/format";
 import {
-  Copy,
-  Check,
-  Trash2,
-  ChevronUp,
-  ChevronDown,
-  X,
-  Download,
-  Link as LinkIcon,
-} from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import { useCartStore } from "@/store/cart";
-import { useCatalogStore } from "@/store/catalog";
-import {
-  brewInstallCommand,
-  brewfile,
-  curlOneLiner,
-  shareUrl,
+    brewInstallCommand,
+    brewfile,
+    curlOneLiner,
+    shareUrl,
 } from "@/lib/outputFormatters";
 import { encodeCart } from "@/lib/shareEncoding";
+import { useCartStore } from "@/store/cart";
+import { useCatalogStore } from "@/store/catalog";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    Check,
+    ChevronDown,
+    ChevronUp,
+    Copy,
+    Download,
+    Link as LinkIcon,
+    Package,
+    Trash2,
+    X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { css } from "styled-system/css";
+import { Box, Flex, Stack, styled } from "styled-system/jsx";
+
+let tipNudgeShown = false;
 
 const Wrapper = styled("div", {
   base: {
@@ -74,10 +79,10 @@ const BarInner = styled("div", {
   base: {
     display: "flex",
     alignItems: "center",
-    gap: "3",
+    gap: { base: "2", md: "3" },
     maxW: "7xl",
     mx: "auto",
-    px: "4",
+    px: { base: "3", md: "4" },
     h: "16",
   },
 });
@@ -121,7 +126,7 @@ const CodeBlock = styled("pre", {
     color: "fg.default",
     bg: "gray.2",
     pl: "3",
-    pr: "10",
+    pr: "12",
     py: "3",
     borderRadius: "l2",
     overflow: "auto",
@@ -133,6 +138,36 @@ const CodeBlock = styled("pre", {
     m: "0",
   },
 });
+
+function ItemFavicon({ src }: { src: string | null }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <Box
+      w="7"
+      h="7"
+      bg={src && !failed ? "white" : "gray.3"}
+      color="fg.subtle"
+      borderRadius="l1"
+      p="1"
+      display="inline-flex"
+      alignItems="center"
+      justifyContent="center"
+      flexShrink="0"
+    >
+      {src && !failed ? (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        />
+      ) : (
+        <Package size={12} />
+      )}
+    </Box>
+  );
+}
 
 const ItemRow = styled("li", {
   base: {
@@ -176,7 +211,14 @@ export function CartBar() {
 
   const items = useMemo(() => {
     const map = new Map(casks.map((c) => [c.token, c]));
-    return tokens.map((t) => ({ token: t, name: map.get(t)?.name[0] ?? t }));
+    return tokens.map((t) => {
+      const c = map.get(t);
+      return {
+        token: t,
+        name: c?.name[0] ?? t,
+        icon: faviconUrl(c?.homepage ?? null),
+      };
+    });
   }, [tokens, casks]);
 
   useEffect(() => {
@@ -201,8 +243,35 @@ export function CartBar() {
   if (tokens.length === 0) return null;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(command);
+    try {
+      await navigator.clipboard.writeText(command);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = command;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch {}
+      document.body.removeChild(ta);
+    }
     setCopied(true);
+    if (!tipNudgeShown) {
+      tipNudgeShown = true;
+      toaster.create({
+        title: "Copied — go install 🍺",
+        description: "If casky helped you, drop a tip in the jar.",
+        type: "success",
+        duration: 8000,
+        action: {
+          label: "Tip jar",
+          onClick: () => window.open(config.donateUrl, "_blank"),
+        },
+        closable: true,
+      });
+    }
   };
 
   return (
@@ -239,6 +308,7 @@ export function CartBar() {
                     <Stack as="ul" gap="1.5" listStyle="none" p="0" m="0">
                       {items.map((it) => (
                         <ItemRow key={it.token}>
+                          <ItemFavicon src={it.icon} />
                           <Box minW="0" flex="1">
                             <Box
                               fontSize="sm"
@@ -285,12 +355,12 @@ export function CartBar() {
                   </Box>
 
                   <Box>
-                    <SectionLabel>Curl one-liner</SectionLabel>
+                    <SectionLabel>Curl</SectionLabel>
                     <BlockWithCopy text={curl} />
                   </Box>
 
                   <Box>
-                    <SectionLabel>Share link</SectionLabel>
+                    <SectionLabel>Share</SectionLabel>
                     <BlockWithCopy text={share} icon={<LinkIcon size={12} />} />
                   </Box>
                 </Stack>
@@ -302,10 +372,15 @@ export function CartBar() {
         <Bar>
           <BarInner>
             <Badge variant="solid" size="md" flexShrink="0">
-              {tokens.length} {tokens.length === 1 ? "app" : "apps"}
+              {tokens.length}
+              <Box display={{ base: "none", sm: "inline" }} ml="1">
+                {tokens.length === 1 ? "app" : "apps"}
+              </Box>
             </Badge>
 
-            <Preview title={command}>{command}</Preview>
+            <Box display={{ base: "none", sm: "flex" }} flex="1" minW="0">
+              <Preview title={command}>{command}</Preview>
+            </Box>
 
             <Flex align="center" gap="2" flexShrink="0">
               <Button onClick={handleCopy} variant="solid" size="md">

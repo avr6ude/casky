@@ -1,17 +1,25 @@
-import { Search, Info, Sun, Moon, Heart } from "lucide-react";
-import { IconButton, Input, Button } from "@/components/ui";
-import { Box, Flex, HStack, styled } from "styled-system/jsx";
-import { useFiltersStore } from "@/store/filters";
-import { useColorMode } from "@/lib/colorMode";
+import { Button, IconButton, Input } from "@/components/ui";
 import { config } from "@/data/config";
+import { useColorMode } from "@/lib/colorMode";
+import { useFiltersStore } from "@/store/filters";
+import { Beer, Heart, Info, Moon, Search, Sun } from "lucide-react";
+import { Box, Flex, HStack, styled } from "styled-system/jsx";
 
 const Logo = styled("span", {
   base: {
-    fontFamily: "mono",
-    fontWeight: "bold",
-    fontSize: "lg",
-    letterSpacing: "tight",
+    fontFamily: '"Pacifico", cursive',
+    fontSize: "xl",
     color: "fg.default",
+    lineHeight: "1",
+    pb: "1",
+  },
+});
+
+const BeerMark = styled("span", {
+  base: {
+    color: "violet.10",
+    display: "inline-flex",
+    alignItems: "center",
   },
 });
 
@@ -19,7 +27,7 @@ const Brand = styled("a", {
   base: {
     display: "inline-flex",
     alignItems: "center",
-    gap: "2",
+    gap: "1.5",
     textDecoration: "none",
     color: "fg.default",
     _hover: { color: "violet.11" },
@@ -47,18 +55,48 @@ export function AppHeader({ onAboutOpen }: AppHeaderProps) {
       backdropFilter="blur(8px)"
     >
       <Flex
-        align="center"
+        direction={{ base: "column", md: "row" }}
+        align={{ base: "stretch", md: "center" }}
         justify="space-between"
-        gap="4"
+        gap={{ base: "2", md: "4" }}
         w="full"
-        px={{ base: "4", md: "6" }}
+        px={{ base: "3", md: "6" }}
         py="3"
       >
-        <Brand href="/">
-          <Logo>🍺 casky</Logo>
-        </Brand>
+        <Flex align="center" justify="space-between" gap="2">
+          <Brand href="/">
+            <BeerMark>
+              <Beer size={22} strokeWidth={2} />
+            </BeerMark>
+            <Logo>casky</Logo>
+          </Brand>
 
-        <Box flex="1" maxW="lg" position="relative">
+          <HStack gap="2" display={{ base: "flex", md: "none" }}>
+            <IconButton variant="outline" size="sm" aria-label="Tip jar" asChild>
+              <a href={config.donateUrl} target="_blank" rel="noreferrer">
+                <Heart size={14} />
+              </a>
+            </IconButton>
+            <IconButton
+              variant="outline"
+              size="sm"
+              aria-label={`Switch to ${mode === "dark" ? "light" : "dark"} mode`}
+              onClick={toggle}
+            >
+              {mode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </IconButton>
+            <IconButton
+              variant="outline"
+              size="sm"
+              aria-label="About casky"
+              onClick={onAboutOpen}
+            >
+              <Info size={16} />
+            </IconButton>
+          </HStack>
+        </Flex>
+
+        <Box flex="1" maxW={{ base: "full", md: "lg" }} position="relative">
           <Box
             position="absolute"
             left="3"
@@ -72,17 +110,17 @@ export function AppHeader({ onAboutOpen }: AppHeaderProps) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search 7000+ Mac apps…"
+            placeholder="Search"
             pl="9"
             aria-label="Search casks"
           />
         </Box>
 
-        <HStack gap="2">
+        <HStack gap="2" display={{ base: "none", md: "flex" }}>
           <Button variant="outline" size="sm" asChild>
             <a href={config.donateUrl} target="_blank" rel="noreferrer">
               <Heart size={14} />
-              <Box display={{ base: "none", md: "inline" }}>Donate</Box>
+              Tip jar
             </a>
           </Button>
 
