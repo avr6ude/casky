@@ -1,4 +1,4 @@
-import { Badge, Button, IconButton, toaster } from "@/components/ui";
+import { Badge, Button, IconButton, Input, toaster } from "@/components/ui";
 import { config } from "@/data/config";
 import { faviconUrl } from "@/lib/format";
 import {
@@ -7,6 +7,7 @@ import {
     curlOneLiner,
     shareUrl,
     cronOneLiner,
+    isQualifiedToken,
     CRON_LABEL,
     CRON_REMOVE,
     type CronSchedule,
@@ -202,11 +203,25 @@ export function CartBar() {
   const tokens = useCartStore((s) => s.tokens);
   const remove = useCartStore((s) => s.remove);
   const clear = useCartStore((s) => s.clear);
+  const setAll = useCartStore((s) => s.setAll);
   const casks = useCatalogStore((s) => s.casks);
 
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [schedule, setSchedule] = useState<CronSchedule>("weekly");
+  const [tapInput, setTapInput] = useState("");
+  const [tapError, setTapError] = useState<string | null>(null);
+
+  const addCustomTap = () => {
+    const value = tapInput.trim().replace(/^brew\s+install\s+(--cask\s+)?/, "");
+    if (!isQualifiedToken(value)) {
+      setTapError("Use owner/repo/cask-name, e.g. charmbracelet/tap/mods");
+      return;
+    }
+    if (!tokens.includes(value)) setAll([...tokens, value]);
+    setTapInput("");
+    setTapError(null);
+  };
 
   const command = useMemo(() => brewInstallCommand(tokens), [tokens]);
   const brewfileText = useMemo(() => brewfile(tokens), [tokens]);
@@ -221,10 +236,12 @@ export function CartBar() {
     const map = new Map(casks.map((c) => [c.token, c]));
     return tokens.map((t) => {
       const c = map.get(t);
+      const custom = isQualifiedToken(t);
       return {
         token: t,
-        name: c?.name[0] ?? t,
+        name: c?.name[0] ?? (custom ? t.split("/").pop()! : t),
         icon: faviconUrl(c?.homepage ?? null),
+        custom,
       };
     });
   }, [tokens, casks]);
@@ -307,16 +324,23 @@ export function CartBar() {
                         <ItemRow key={it.token}>
                           <ItemFavicon src={it.icon} />
                           <Box minW="0" flex="1">
-                            <Box
-                              fontSize="sm"
-                              fontWeight="medium"
-                              color="fg.default"
-                              overflow="hidden"
-                              textOverflow="ellipsis"
-                              whiteSpace="nowrap"
-                            >
-                              {it.name}
-                            </Box>
+                            <Flex align="center" gap="1.5" minW="0">
+                              <Box
+                                fontSize="sm"
+                                fontWeight="medium"
+                                color="fg.default"
+                                overflow="hidden"
+                                textOverflow="ellipsis"
+                                whiteSpace="nowrap"
+                              >
+                                {it.name}
+                              </Box>
+                              {it.custom && (
+                                <Badge size="sm" variant="outline" flexShrink="0">
+                                  tap
+                                </Badge>
+                              )}
+                            </Flex>
                             <Token>{it.token}</Token>
                           </Box>
                           <IconButton
@@ -331,6 +355,46 @@ export function CartBar() {
                       ))}
                     </Stack>
                   </Box>
+
+                  <Stack gap="1.5" mt="3">
+                    <SectionLabel>Add from a custom tap</SectionLabel>
+                    <Flex
+                      as="form"
+                      gap="1.5"
+                      onSubmit={(e: React.FormEvent) => {
+                        e.preventDefault();
+                        addCustomTap();
+                      }}
+                    >
+                      <Input
+                        size="sm"
+                        placeholder="owner/repo/cask-name"
+                        value={tapInput}
+                        onChange={(e) => {
+                          setTapInput(e.target.value);
+                          if (tapError) setTapError(null);
+                        }}
+                        aria-invalid={tapError ? true : undefined}
+                        aria-label="Custom tap cask token"
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant="outline"
+                        disabled={!tapInput.trim()}
+                      >
+                        Add
+                      </Button>
+                    </Flex>
+                    <Box
+                      fontSize="xs"
+                      color={tapError ? "red.11" : "fg.muted"}
+                      lineHeight="snug"
+                    >
+                      {tapError ??
+                        "e.g. charmbracelet/tap/mods — installs with brew's auto-tap."}
+                    </Box>
+                  </Stack>
                 </Box>
 
                 <Stack gap="4">

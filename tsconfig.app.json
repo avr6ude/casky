@@ -26,5 +26,6 @@
       "styled-system/*": ["./styled-system/*"]
     }
   },
-  "include": ["src", "styled-system"]
+  "include": ["src", "styled-system"],
+  "exclude": ["src/**/*.test.ts"]
 }
