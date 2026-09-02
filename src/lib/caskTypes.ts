@@ -16,7 +16,9 @@ export type Cask = {
     macos?: unknown;
   };
   install_count?: number;
-  category?: CaskCategory;
+  // A built-in CaskCategory, or a tap name ("owner/name") for casks from a
+  // custom tap.
+  category?: CaskCategory | string;
 };
 
 export type CaskCategory =

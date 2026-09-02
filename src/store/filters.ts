@@ -1,11 +1,11 @@
 import { create } from "zustand";
-import type { CaskCategory } from "@/lib/caskTypes";
 
+// "all", a built-in CaskCategory, or a tap name ("owner/name").
 type FilterState = {
   query: string;
-  category: CaskCategory | "all";
+  category: string;
   setQuery: (q: string) => void;
-  setCategory: (c: CaskCategory | "all") => void;
+  setCategory: (c: string) => void;
 };
 
 export const useFiltersStore = create<FilterState>((set) => ({

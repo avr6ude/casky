@@ -225,7 +225,7 @@ export function CaskCard({ cask }: CaskCardProps) {
           </Meta>
           {cask.category && cask.category !== "other" && (
             <Badge size="sm" variant="subtle" flexShrink="0">
-              {CATEGORY_LABEL[cask.category]}
+              {CATEGORY_LABEL[cask.category] ?? "tap"}
             </Badge>
           )}
         </Flex>
