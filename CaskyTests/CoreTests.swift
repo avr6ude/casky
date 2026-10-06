@@ -151,3 +151,65 @@ import Testing
         #expect(kits.allSatisfy { !$0.items.isEmpty && $0.items.count == $0.items.uniqued().count })
     }
 }
+
+@Suite struct CatalogTests {
+    private let casks = Data(#"""
+    [
+      {"token": "zoom", "name": ["Zoom"], "desc": "Video calls", "homepage": "https://zoom.us", "deprecated": false, "disabled": false,
+       "artifacts": [{"uninstall": [{"pkgutil": "us.zoom"}]}, {"pkg": ["zoom.pkg"]}]},
+      {"token": "firefox", "name": ["Mozilla Firefox"], "desc": "Web browser", "homepage": "https://firefox.com", "deprecated": false, "disabled": false,
+       "artifacts": [{"app": ["Firefox.app"]}, ["odd", "shape"]]},
+      {"token": "old", "name": ["Old"], "desc": null, "homepage": null, "deprecated": true, "disabled": false, "artifacts": []},
+      {"token": "Bad Token", "name": ["Bad"], "desc": null, "homepage": null, "deprecated": false, "disabled": false, "artifacts": []}
+    ]
+    """#.utf8)
+    private let formulae = Data(#"""
+    [
+      {"name": "git", "desc": "Distributed revision control", "homepage": "https://git-scm.com", "deprecated": false, "disabled": false},
+      {"name": "firefoxpwa", "desc": "Progressive web apps for Firefox", "homepage": null, "deprecated": false, "disabled": false},
+      {"name": "gone", "desc": null, "homepage": null, "deprecated": false, "disabled": true}
+    ]
+    """#.utf8)
+    private let caskInstalls = Data(#"{"items": [{"cask": "firefox", "count": "1,234"}, {"cask": "zoom", "count": "99"}]}"#.utf8)
+    private let formulaInstalls = Data(#"{"items": [{"formula": "git", "count": "5,000"}, {"formula": "firefoxpwa", "count": 10}]}"#.utf8)
+
+    private func catalog() throws -> Catalog {
+        Catalog(entries: try Catalog.decodeHomebrew(casks: casks, formulae: formulae, caskInstalls: caskInstalls, formulaInstalls: formulaInstalls))
+    }
+
+    @Test func decodesActiveEntriesWithAnalyticsAndAdminFlag() throws {
+        let catalog = try catalog()
+        #expect(catalog.entries.map(\.title) == ["git", "firefoxpwa", "Zoom", "Mozilla Firefox"])
+        let zoom = try #require(catalog.entry(for: .cask(try Ref(parsing: "zoom"))))
+        #expect(zoom.needsAdmin && zoom.installs == 99)
+        #expect(catalog.adminItems == [zoom.item])
+        #expect(catalog.entry(for: .formula(try Ref(parsing: "firefoxpwa")))?.installs == 10)
+    }
+
+    @Test func worksWithoutAnalytics() throws {
+        let entries = try Catalog.decodeHomebrew(casks: casks, formulae: formulae, caskInstalls: nil, formulaInstalls: Data("garbage".utf8))
+        #expect(entries.count == 4 && entries.allSatisfy { $0.installs == 0 })
+    }
+
+    @Test func ranksByMatchQualityThenPopularity() throws {
+        let catalog = try catalog()
+        #expect(catalog.search("firefox").map(\.title) == ["Mozilla Firefox", "firefoxpwa"])
+        #expect(catalog.search("FIRE", kind: .formula).map(\.title) == ["firefoxpwa"])
+        #expect(catalog.search("video").map(\.title) == ["Zoom"])
+        #expect(catalog.search("").map(\.title) == ["git", "Mozilla Firefox", "Zoom", "firefoxpwa"])
+        #expect(catalog.search("nothing-matches").isEmpty)
+    }
+
+    @Test func appStoreKeepsMacAppsOnly() throws {
+        let data = Data(#"""
+        {"resultCount": 2, "results": [
+          {"trackId": 497799835, "trackName": "Xcode", "kind": "mac-software", "description": "Build apps.\nMore text", "trackViewUrl": "https://apps.apple.com/app/id497799835"},
+          {"trackId": 640199958, "trackName": "Apple Developer", "kind": "software", "description": "iPad app"}
+        ]}
+        """#.utf8)
+        let entries = try AppStoreSearch.decode(data)
+        #expect(entries.map(\.item) == [.mas(id: 497799835, name: "Xcode")])
+        #expect(entries.first?.summary == "Build apps.")
+        #expect(AppStoreSearch.url(for: "ia writer").absoluteString.contains("term=ia%20writer"))
+    }
+}

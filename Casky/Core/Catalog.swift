@@ -1,0 +1,200 @@
+import Foundation
+
+/// What casky shows for one installable item.
+struct CatalogEntry: Codable, Hashable, Identifiable, Sendable {
+    let item: Item
+    let title: String
+    let summary: String?
+    let homepage: URL?
+    /// Installs over the last year from Homebrew analytics; 0 when unknown.
+    let installs: Int
+    /// Heuristic: the cask ships a pkg or installer, which usually runs `sudo`.
+    let needsAdmin: Bool
+
+    var id: Item { item }
+}
+
+/// The searchable Homebrew catalog (formulae and casks). App Store results
+/// come from a live search instead; see `AppStoreSearch`.
+struct Catalog: Sendable {
+    let entries: [CatalogEntry]
+    private let index: [Item: CatalogEntry]
+    private let searchKeys: [SearchKey]
+
+    init(entries: [CatalogEntry]) {
+        self.entries = entries
+        index = Dictionary(entries.map { ($0.item, $0) }, uniquingKeysWith: { first, _ in first })
+        searchKeys = entries.map(SearchKey.init)
+    }
+
+    func entry(for item: Item) -> CatalogEntry? { index[item] }
+
+    var adminItems: Set<Item> { Set(entries.lazy.filter(\.needsAdmin).map(\.item)) }
+
+    /// Ranked by match quality (exact, prefix, substring of name, then
+    /// substring of description), then by popularity. An empty query lists
+    /// the most popular entries.
+    func search(_ query: String, kind: Item.Kind? = nil, limit: Int = 200) -> [CatalogEntry] {
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        var hits: [(rank: Int, entry: CatalogEntry)] = []
+        for (key, entry) in zip(searchKeys, entries) where kind == nil || entry.item.kind == kind {
+            if let rank = key.rank(needle) { hits.append((rank, entry)) }
+        }
+        hits.sort {
+            ($0.rank, -$0.entry.installs, $0.entry.title) < ($1.rank, -$1.entry.installs, $1.entry.title)
+        }
+        return hits.prefix(limit).map(\.entry)
+    }
+
+    private struct SearchKey: Sendable {
+        let names: [String]
+        let summary: String
+
+        init(_ entry: CatalogEntry) {
+            let token = switch entry.item {
+            case .formula(let ref), .cask(let ref): ref.name
+            case .mas(_, let name): name.lowercased()
+            }
+            names = [token, entry.title.lowercased()]
+            summary = entry.summary?.lowercased() ?? ""
+        }
+
+        func rank(_ needle: String) -> Int? {
+            if needle.isEmpty { return 0 }
+            if names.contains(needle) { return 0 }
+            if names.contains(where: { $0.hasPrefix(needle) }) { return 1 }
+            if names.contains(where: { $0.contains(needle) }) { return 2 }
+            if summary.contains(needle) { return 3 }
+            return nil
+        }
+    }
+}
+
+// MARK: - Homebrew API decoding
+
+extension Catalog {
+    /// Decodes `formulae.brew.sh` API payloads. Analytics are optional: without
+    /// them everything still works, ranked by name only.
+    static func decodeHomebrew(
+        casks: Data,
+        formulae: Data,
+        caskInstalls: Data?,
+        formulaInstalls: Data?
+    ) throws -> [CatalogEntry] {
+        let decoder = JSONDecoder()
+        let caskCounts = caskInstalls.map { Analytics.counts($0, key: "cask") } ?? [:]
+        let formulaCounts = formulaInstalls.map { Analytics.counts($0, key: "formula") } ?? [:]
+
+        let formulaEntries = try decoder.decode([RawFormula].self, from: formulae).compactMap { raw -> CatalogEntry? in
+            guard !raw.deprecated, !raw.disabled, let ref = try? Ref(parsing: raw.name) else { return nil }
+            return CatalogEntry(
+                item: .formula(ref), title: raw.name, summary: raw.desc,
+                homepage: raw.homepage.flatMap(URL.init(string:)),
+                installs: formulaCounts[raw.name] ?? 0, needsAdmin: false
+            )
+        }
+        let caskEntries = try decoder.decode([RawCask].self, from: casks).compactMap { raw -> CatalogEntry? in
+            guard !raw.deprecated, !raw.disabled, let ref = try? Ref(parsing: raw.token) else { return nil }
+            return CatalogEntry(
+                item: .cask(ref), title: raw.name?.first ?? raw.token, summary: raw.desc,
+                homepage: raw.homepage.flatMap(URL.init(string:)),
+                installs: caskCounts[raw.token] ?? 0,
+                needsAdmin: raw.artifacts.contains { !$0.keys.isDisjoint(with: ["pkg", "installer"]) }
+            )
+        }
+        return formulaEntries + caskEntries
+    }
+
+    private struct RawFormula: Decodable {
+        let name: String
+        let desc: String?
+        let homepage: String?
+        let deprecated: Bool
+        let disabled: Bool
+    }
+
+    private struct RawCask: Decodable {
+        let token: String
+        let name: [String]?
+        let desc: String?
+        let homepage: String?
+        let deprecated: Bool
+        let disabled: Bool
+        let artifacts: [ArtifactKeys]
+    }
+
+    /// Only the artifact kinds matter (`app`, `pkg`, `installer`, ...); their
+    /// payloads vary per kind and are not needed.
+    private struct ArtifactKeys: Decodable {
+        let keys: Set<String>
+
+        init(from decoder: Decoder) throws {
+            let container = try? decoder.container(keyedBy: AnyKey.self)
+            keys = Set(container?.allKeys.map(\.stringValue) ?? [])
+        }
+    }
+
+    private struct AnyKey: CodingKey {
+        let stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { nil }
+    }
+
+    private enum Analytics {
+        /// `{"items": [{"cask": "firefox", "count": "1,234"}, ...]}`
+        static func counts(_ data: Data, key: String) -> [String: Int] {
+            guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let items = object["items"] as? [[String: Any]] else { return [:] }
+            var counts: [String: Int] = [:]
+            for item in items {
+                guard let name = item[key] as? String else { continue }
+                if let count = item["count"] as? String {
+                    counts[name] = Int(count.replacingOccurrences(of: ",", with: ""))
+                } else if let count = item["count"] as? Int {
+                    counts[name] = count
+                }
+            }
+            return counts
+        }
+    }
+}
+
+// MARK: - App Store
+
+/// Live App Store search via the public iTunes Search API.
+enum AppStoreSearch {
+    static func url(for term: String) -> URL {
+        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        components.queryItems = [
+            URLQueryItem(name: "entity", value: "macSoftware"),
+            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "term", value: term),
+        ]
+        return components.url!
+    }
+
+    /// Keeps Mac apps only: the API also returns iPad apps for `macSoftware`
+    /// queries, which `mas` cannot install.
+    static func decode(_ data: Data) throws -> [CatalogEntry] {
+        try JSONDecoder().decode(Response.self, from: data).results.compactMap { app in
+            guard app.kind == "mac-software" else { return nil }
+            return CatalogEntry(
+                item: .mas(id: app.trackId, name: app.trackName), title: app.trackName,
+                summary: app.description.flatMap { $0.split(separator: "\n").first.map(String.init) },
+                homepage: app.trackViewUrl.flatMap(URL.init(string:)),
+                installs: 0, needsAdmin: false
+            )
+        }
+    }
+
+    private struct Response: Decodable { let results: [App] }
+
+    private struct App: Decodable {
+        let trackId: Int
+        let trackName: String
+        let kind: String?
+        let description: String?
+        let trackViewUrl: String?
+    }
+}

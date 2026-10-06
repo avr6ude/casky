@@ -9,6 +9,16 @@ enum Item: Hashable, Sendable {
     case cask(Ref)
     case mas(id: Int, name: String)
 
+    enum Kind: Hashable, Sendable { case formula, cask, mas }
+
+    var kind: Kind {
+        switch self {
+        case .formula: .formula
+        case .cask: .cask
+        case .mas: .mas
+        }
+    }
+
     /// The tap this item must come from, if any. Taps are never selected on
     /// their own; they are always derived from items.
     var tap: String? {
