@@ -2,14 +2,14 @@ import SwiftUI
 
 @main
 struct CaskyApp: App {
+    @State private var model = AppModel()
+
     var body: some Scene {
-        WindowGroup {
-            ContentUnavailableView(
-                "casky",
-                systemImage: "shippingbox",
-                description: Text("Pick a kit or search. casky installs everything with Homebrew and the App Store.")
-            )
-            .frame(minWidth: 720, minHeight: 480)
+        Window("casky", id: "main") {
+            RootView()
+                .environment(model)
+                .tint(.purple)
+                .frame(minWidth: 820, minHeight: 520)
         }
     }
 }
