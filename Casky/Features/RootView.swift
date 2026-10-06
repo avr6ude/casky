@@ -6,6 +6,7 @@ enum Destination: Hashable {
     case selection
     case browse(Item.Kind)
     case kit(String)
+    case setup(UUID)
 }
 
 struct RootView: View {
@@ -25,6 +26,13 @@ struct RootView: View {
                 }
         }
         .task { await model.start() }
+        .modifier(Prompts())
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            model.importBrewfile(at: url)
+            destination = .selection
+            return true
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await model.refreshInstalled() }
         }
@@ -41,6 +49,12 @@ struct RootView: View {
         case .kit(let slug):
             if let kit = model.kits.first(where: { $0.slug == slug }) {
                 KitView(kit: kit).id(slug)
+            }
+        case .setup(let id):
+            if let setup = model.setups.first(where: { $0.id == id }) {
+                SetupView(setup: setup).id(id)
+            } else {
+                ContentUnavailableView("This setup was deleted", systemImage: "square.stack")
             }
         }
     }
@@ -61,6 +75,26 @@ private struct Sidebar: View {
                 ForEach([Item.Kind.cask, .formula, .mas], id: \.self) { kind in
                     Label(kind.pluralLabel, systemImage: kind.symbol).tag(Destination.browse(kind))
                 }
+            }
+
+            Section("My Setups") {
+                ForEach(model.setups) { setup in
+                    Label(setup.name, systemImage: "square.stack")
+                        .tag(Destination.setup(setup.id))
+                        .contextMenu {
+                            Button("Rename…") { model.namePrompt = .rename(setup) }
+                            Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
+                            Divider()
+                            Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
+                        }
+                }
+                Button {
+                    Task { await model.promptToSaveThisMac() }
+                } label: {
+                    Label("Save This Mac…", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
             }
 
             Section("Kits") {
@@ -95,6 +129,10 @@ private struct StatusFooter: View {
                 }
                 .help(error)
             }
+            if let error = model.setupsLoadError {
+                Label("Saved setups couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
+                    .help(error)
+            }
             if model.homebrew == nil {
                 Label("Homebrew not found. casky needs it to install.", systemImage: "exclamationmark.triangle")
             } else if let error = model.installedError {
@@ -106,5 +144,71 @@ private struct StatusFooter: View {
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
+    }
+}
+
+/// Name prompts, the Brewfile import summary and error alerts.
+private struct Prompts: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @State private var name = ""
+
+    func body(content: Content) -> some View {
+        @Bindable var model = model
+        content
+            .alert(promptTitle, isPresented: isPresented($model.namePrompt), presenting: model.namePrompt) { prompt in
+                TextField("Name", text: $name)
+                Button("Save") {
+                    switch prompt {
+                    case .newSetup(let items, _): model.saveSetup(named: name, items: items)
+                    case .rename(let setup): model.renameSetup(setup.id, to: name)
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                Button("Cancel", role: .cancel) {}
+            } message: { prompt in
+                if case .newSetup(let items, _) = prompt {
+                    Text("^[\(items.count) item](inflect: true) will be saved on this Mac.")
+                }
+            }
+            .onChange(of: model.namePrompt == nil) {
+                // Seed the field each time a prompt opens.
+                switch model.namePrompt {
+                case .newSetup(_, let suggestedName): name = suggestedName
+                case .rename(let setup): name = setup.name
+                case nil: break
+                }
+            }
+            .alert("Brewfile imported", isPresented: isPresented($model.lastImport), presenting: model.lastImport) { _ in
+                Button("OK") {}
+            } message: { result in
+                Text(importSummary(result))
+            }
+            .alert("Something went wrong", isPresented: isPresented($model.alertMessage), presenting: model.alertMessage) { _ in
+                Button("OK") {}
+            } message: { message in
+                Text(message)
+            }
+    }
+
+    private var promptTitle: String {
+        if case .rename = model.namePrompt { "Rename Setup" } else { "Save Setup" }
+    }
+
+    private func isPresented<Value>(_ binding: Binding<Value?>) -> Binding<Bool> {
+        Binding(get: { binding.wrappedValue != nil }, set: { if !$0 { binding.wrappedValue = nil } })
+    }
+
+    private func importSummary(_ result: Brewfile.Import) -> String {
+        let count = result.items.count
+        var lines = ["Added \(count) \(count == 1 ? "item" : "items") to your selection."]
+        if result.optionsIgnored > 0 {
+            lines.append("Options on \(result.optionsIgnored) lines were ignored.")
+        }
+        if !result.skipped.isEmpty {
+            lines.append("Skipped \(result.skipped.count) lines casky can't read safely:")
+            lines.append(contentsOf: result.skipped.prefix(8))
+            if result.skipped.count > 8 { lines.append("…and \(result.skipped.count - 8) more") }
+        }
+        return lines.joined(separator: "\n")
     }
 }

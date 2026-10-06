@@ -70,32 +70,79 @@ struct KitView: View {
     let kit: Kit
 
     var body: some View {
-        let entries = model.entries(for: kit)
-        let items = entries.map(\.item)
         CatalogGate {
-            VStack(spacing: 0) {
-                HStack(alignment: .top, spacing: 16) {
-                    Image(systemName: kit.symbol)
-                        .font(.largeTitle)
-                        .foregroundStyle(.tint)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(kit.title).font(.title.bold())
-                        Text(kit.summary).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button(items.allSatisfy(model.isSelected) ? "Deselect All" : "Select All") {
-                        model.toggleAll(items)
-                    }
-                    .controlSize(.large)
-                    .disabled(items.isEmpty)
-                }
-                .padding(24)
-                Divider()
-                ItemList(entries: entries)
-            }
+            CollectionView(symbol: kit.symbol, title: kit.title, subtitle: kit.summary, entries: model.entries(for: kit))
         }
         .navigationTitle(kit.title)
+    }
+}
+
+struct SetupView: View {
+    @Environment(AppModel.self) private var model
+    let setup: SavedSetup
+
+    var body: some View {
+        CollectionView(
+            symbol: "square.stack",
+            title: setup.name,
+            subtitle: "Saved \(setup.createdAt.formatted(date: .abbreviated, time: .omitted))",
+            entries: setup.items.map(model.displayEntry(for:))
+        ) {
+            Menu {
+                Button("Rename…") { model.namePrompt = .rename(setup) }
+                Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
+                Divider()
+                Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .menuIndicator(.hidden)
+            .fixedSize()
+        }
+        .navigationTitle(setup.name)
+    }
+}
+
+/// Header with a Select All toggle above a list of entries; shared by kits
+/// and saved setups.
+struct CollectionView<Actions: View>: View {
+    @Environment(AppModel.self) private var model
+    let symbol: String
+    let title: String
+    let subtitle: String
+    let entries: [CatalogEntry]
+    @ViewBuilder var actions: Actions
+
+    var body: some View {
+        let items = entries.map(\.item)
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 16) {
+                Image(systemName: symbol)
+                    .font(.largeTitle)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(.title.bold())
+                    Text(subtitle).foregroundStyle(.secondary)
+                }
+                Spacer()
+                actions
+                Button(items.allSatisfy(model.isSelected) ? "Deselect All" : "Select All") {
+                    model.toggleAll(items)
+                }
+                .disabled(items.isEmpty)
+            }
+            .controlSize(.large)
+            .padding(24)
+            Divider()
+            ItemList(entries: entries)
+        }
+    }
+}
+
+extension CollectionView where Actions == EmptyView {
+    init(symbol: String, title: String, subtitle: String, entries: [CatalogEntry]) {
+        self.init(symbol: symbol, title: title, subtitle: subtitle, entries: entries) { EmptyView() }
     }
 }
 
@@ -240,6 +287,11 @@ struct SelectionBar: View {
             }
             Spacer()
             Button("Clear", role: .destructive) { model.clearSelection() }
+            Menu("Save") {
+                Button("Save as Setup…") { model.promptToSaveSelection() }
+                Button("Export Brewfile…") { model.exportBrewfile(model.selection) }
+            }
+            .fixedSize()
             Button("Review", action: review)
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

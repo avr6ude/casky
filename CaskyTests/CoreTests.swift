@@ -217,7 +217,9 @@ import Testing
 @Suite struct InstalledStateTests {
     @Test func decodesHomebrewTapsAndMas() throws {
         let brewInfo = Data(#"""
-        {"formulae": [{"name": "git", "full_name": "git"}, {"name": "terraform", "full_name": "hashicorp/tap/terraform"}],
+        {"formulae": [{"name": "git", "full_name": "git", "installed": [{"installed_on_request": true}]},
+                      {"name": "pcre2", "full_name": "pcre2", "installed": [{"installed_on_request": false}]},
+                      {"name": "terraform", "full_name": "hashicorp/tap/terraform", "installed": [{}]}],
          "casks": [{"token": "mods", "full_token": "charmbracelet/tap/mods"}, {"token": "firefox", "full_token": "firefox"}]}
         """#.utf8)
         let tapInfo = Data(#"[{"name": "hashicorp/tap"}, {"name": "charmbracelet/tap"}]"#.utf8)
@@ -226,8 +228,16 @@ import Testing
         #expect(state.contains(.formula(try Ref(parsing: "hashicorp/homebrew-tap/terraform"))))
         #expect(state.contains(.cask(try Ref(parsing: "charmbracelet/tap/mods"))))
         #expect(!state.contains(.formula(try Ref(parsing: "firefox"))))
-        #expect(state.masApps == [497799835, 937984704])
+        #expect(state.masApps == [497799835: "Xcode", 937984704: "Amphetamine"])
         #expect(state.taps == ["hashicorp/tap", "charmbracelet/tap"])
+        #expect(state.requestedFormulae == ["git"])
+        #expect(state.snapshot() == [
+            .formula(try Ref(parsing: "git")),
+            .cask(try Ref(parsing: "charmbracelet/tap/mods")),
+            .cask(try Ref(parsing: "firefox")),
+            .mas(id: 937984704, name: "Amphetamine"),
+            .mas(id: 497799835, name: "Xcode"),
+        ])
     }
 
     @Test func emptyMasListAndMissingMas() {

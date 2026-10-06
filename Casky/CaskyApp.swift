@@ -11,5 +11,21 @@ struct CaskyApp: App {
                 .tint(.purple)
                 .frame(minWidth: 820, minHeight: 520)
         }
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Open Brewfile…") { model.openBrewfile() }
+                    .keyboardShortcut("o")
+            }
+            CommandGroup(replacing: .saveItem) {
+                Button("Save Selection as Setup…") { model.promptToSaveSelection() }
+                    .keyboardShortcut("s")
+                    .disabled(model.selection.isEmpty)
+                Button("Save This Mac as Setup…") { Task { await model.promptToSaveThisMac() } }
+                Divider()
+                Button("Export Brewfile…") { model.exportBrewfile(model.selection) }
+                    .keyboardShortcut("e")
+                    .disabled(model.selection.isEmpty)
+            }
+        }
     }
 }

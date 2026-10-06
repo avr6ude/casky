@@ -27,19 +27,47 @@ final class AppModel {
 
     let kits: [Kit]
 
+    private(set) var setups: [SavedSetup] = []
+    /// Set when setups.json couldn't be read; saving stays off so the file
+    /// is never overwritten with an empty list.
+    private(set) var setupsLoadError: String?
+
+    /// A name prompt the window should show.
+    enum NamePrompt {
+        case newSetup(items: [Item], suggestedName: String)
+        case rename(SavedSetup)
+    }
+    var namePrompt: NamePrompt?
+    /// Result of the last Brewfile import, shown as a summary.
+    var lastImport: Brewfile.Import?
+    /// An error the user needs to see now (file read/write failures).
+    var alertMessage: String?
+
     private(set) var selection: [Item] = []
     private var selectedSet: Set<Item> = []
 
     private let fetch: CatalogFetch
+    private let store: SetupStore
     /// App Store results seen so far, so selected App Store items keep their
     /// details. Bounded by what the user searched for.
     private var appStoreEntries: [Item: CatalogEntry] = [:]
     private var appStoreQueries: [String: [CatalogEntry]] = [:]
 
-    init(fetch: CatalogFetch = CatalogFetch(), homebrew: Homebrew? = Homebrew(), kits: [Kit] = AppModel.bundledKits()) {
+    init(
+        fetch: CatalogFetch = CatalogFetch(),
+        store: SetupStore = SetupStore(),
+        homebrew: Homebrew? = Homebrew(),
+        kits: [Kit] = AppModel.bundledKits()
+    ) {
         self.fetch = fetch
+        self.store = store
         self.homebrew = homebrew
         self.kits = kits
+        do {
+            setups = try store.load()
+        } catch {
+            setupsLoadError = "Couldn't read your saved setups (\(store.file.path)): \(error.localizedDescription)"
+        }
     }
 
     var catalog: Catalog? {
@@ -157,6 +185,77 @@ final class AppModel {
     }
 
     var installedSelectionCount: Int { selection.filter(installed.contains).count }
+
+    // MARK: Setups
+
+    func promptToSaveSelection() {
+        namePrompt = .newSetup(items: selection, suggestedName: "My setup")
+    }
+
+    /// Snapshot of what's installed on purpose, offered as a new setup.
+    func promptToSaveThisMac() async {
+        guard homebrew != nil else {
+            alertMessage = "casky needs Homebrew to see what's installed on this Mac."
+            return
+        }
+        await refreshInstalled()
+        if let installedError {
+            alertMessage = installedError
+            return
+        }
+        let name = Host.current().localizedName ?? "This Mac"
+        namePrompt = .newSetup(items: installed.snapshot(), suggestedName: name)
+    }
+
+    func saveSetup(named name: String, items: [Item]) {
+        let setup = SavedSetup(id: UUID(), name: Self.cleanName(name, fallback: "My setup"), items: items, createdAt: .now)
+        setups.insert(setup, at: 0)
+        persistSetups()
+    }
+
+    func renameSetup(_ id: SavedSetup.ID, to name: String) {
+        guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
+        setups[index].name = Self.cleanName(name, fallback: setups[index].name)
+        persistSetups()
+    }
+
+    func deleteSetup(_ id: SavedSetup.ID) {
+        setups.removeAll { $0.id == id }
+        persistSetups()
+    }
+
+    private func persistSetups() {
+        guard setupsLoadError == nil else { return }
+        do {
+            try store.save(setups)
+        } catch {
+            alertMessage = "Couldn't save your setups: \(error.localizedDescription)"
+        }
+    }
+
+    private static func cleanName(_ name: String, fallback: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    // MARK: Brewfiles
+
+    /// Adds the file's plain entries to the selection and keeps a summary of
+    /// what was skipped. The file is read, never executed.
+    func importBrewfile(at url: URL) {
+        let text: String
+        do {
+            text = try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            alertMessage = "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)"
+            return
+        }
+        let result = Brewfile.read(text)
+        for item in result.items where !isSelected(item) { toggle(item) }
+        lastImport = result
+    }
+
+    func brewfile(for items: [Item]) -> String { Brewfile.render(items) }
 
     // MARK: Helpers
 
