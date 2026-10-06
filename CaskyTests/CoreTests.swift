@@ -29,10 +29,11 @@ import Testing
         let data = try JSONEncoder().encode(items)
         #expect(try JSONDecoder().decode([Item].self, from: data) == items)
 
-        let valid = Data(#"{"cask":{"_0":"firefox"}}"#.utf8)
+        let valid = Data(#"{"cask":"firefox"}"#.utf8)
         #expect(try JSONDecoder().decode(Item.self, from: valid) == .cask(try Ref(parsing: "firefox")))
-        let tampered = Data(#"{"cask":{"_0":"bad name"}}"#.utf8)
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(Item.self, from: tampered) }
+        for tampered in [#"{"cask":"bad name"}"#, #"{"cask":"a","formula":"b"}"#, "{}"] {
+            #expect(throws: (any Error).self) { try JSONDecoder().decode(Item.self, from: Data(tampered.utf8)) }
+        }
     }
 
     @Test func sameNameDifferentKindAreDifferentItems() throws {
@@ -138,5 +139,15 @@ import Testing
         let plan = InstallPlan(selection: [.formula(try ref("git"))], installed: installed)
         #expect(plan.steps.isEmpty)
         #expect(plan.alreadyInstalled.count == 1)
+    }
+}
+
+@Suite struct KitTests {
+    @Test func bundledKitsDecode() throws {
+        let url = try #require(Bundle.main.url(forResource: "kits", withExtension: "json"))
+        let kits = try JSONDecoder().decode([Kit].self, from: Data(contentsOf: url))
+        #expect(kits.count == 16)
+        #expect(Set(kits.map(\.slug)).count == kits.count)
+        #expect(kits.allSatisfy { !$0.items.isEmpty && $0.items.count == $0.items.uniqued().count })
     }
 }

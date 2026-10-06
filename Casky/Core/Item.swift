@@ -4,7 +4,7 @@ import Foundation
 ///
 /// The kind is part of the identity: `docker` the cask and `docker` the formula
 /// are different items.
-enum Item: Hashable, Codable, Sendable {
+enum Item: Hashable, Sendable {
     case formula(Ref)
     case cask(Ref)
     case mas(id: Int, name: String)
@@ -15,6 +15,37 @@ enum Item: Hashable, Codable, Sendable {
         switch self {
         case .formula(let ref), .cask(let ref): ref.tap
         case .mas: nil
+        }
+    }
+}
+
+/// Stored as `{"cask": "firefox"}`, `{"formula": "git"}` or
+/// `{"mas": {"id": 497799835, "name": "Xcode"}}` so saved setups and the
+/// bundled kits stay readable and hand-editable.
+extension Item: Codable {
+    private enum Key: String, CodingKey { case formula, cask, mas }
+    private struct AppStoreApp: Codable { let id: Int; let name: String }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: Key.self)
+        guard container.allKeys.count == 1, let key = container.allKeys.first else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Expected exactly one of formula, cask, mas"))
+        }
+        switch key {
+        case .formula: self = .formula(try container.decode(Ref.self, forKey: key))
+        case .cask: self = .cask(try container.decode(Ref.self, forKey: key))
+        case .mas:
+            let app = try container.decode(AppStoreApp.self, forKey: key)
+            self = .mas(id: app.id, name: app.name)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: Key.self)
+        switch self {
+        case .formula(let ref): try container.encode(ref, forKey: .formula)
+        case .cask(let ref): try container.encode(ref, forKey: .cask)
+        case .mas(let id, let name): try container.encode(AppStoreApp(id: id, name: name), forKey: .mas)
         }
     }
 }
