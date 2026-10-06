@@ -273,18 +273,23 @@ struct CatalogGate<Content: View>: View {
 struct SelectionBar: View {
     @Environment(AppModel.self) private var model
     let review: () -> Void
+    @State private var isConfirming = false
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("^[\(model.selection.count) item](inflect: true) selected")
-                    .font(.headline)
-                if model.installedSelectionCount > 0 {
-                    Text("\(model.installedSelectionCount) already installed")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+            Button(action: review) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("^[\(model.selection.count) item](inflect: true) selected")
+                        .font(.headline)
+                    if model.installedSelectionCount > 0 {
+                        Text("\(model.installedSelectionCount) already installed")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
+            .buttonStyle(.plain)
+            .help("Review the selection")
             Spacer()
             Button("Clear", role: .destructive) { model.clearSelection() }
             Menu("Save") {
@@ -292,14 +297,65 @@ struct SelectionBar: View {
                 Button("Export Brewfile…") { model.exportBrewfile(model.selection) }
             }
             .fixedSize()
-            Button("Review", action: review)
+            Button("Install…") { isConfirming = true }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
+                .disabled(model.isInstalling)
         }
         .controlSize(.large)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
+        .modifier(InstallConfirmation(isPresented: $isConfirming))
+    }
+}
+
+/// The check before anything runs: what will be installed, what's skipped,
+/// what will ask for a password. Without Homebrew, offers to get it.
+private struct InstallConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        let plan = model.previewPlan()
+        let installs = plan.steps.compactMap { if case .install(let item) = $0.action { item } else { nil } }
+        let needsPassword = installs.filter { if case .mas = $0 { true } else { model.catalog?.entry(for: $0)?.needsAdmin == true } }
+        content
+            .alert("casky needs Homebrew", isPresented: presented(when: model.homebrew == nil)) {
+                Button("Download Homebrew Installer") {
+                    isPresented = false
+                    Task { await model.installHomebrew() }
+                }
+                Button("Cancel", role: .cancel) { isPresented = false }
+            } message: {
+                Text("Homebrew installs the apps and tools. casky will download Homebrew's official installer from GitHub and open it. Come back here when it's done.")
+            }
+            .confirmationDialog(
+                installs.isEmpty ? "Everything selected is already installed" : "Install \(installs.count) \(installs.count == 1 ? "item" : "items")?",
+                isPresented: presented(when: model.homebrew != nil)
+            ) {
+                if !installs.isEmpty {
+                    Button("Install") {
+                        isPresented = false
+                        Task { await model.install() }
+                    }
+                }
+                Button("Cancel", role: .cancel) { isPresented = false }
+            } message: {
+                Text(summary(plan: plan, needsPassword: needsPassword.count, hasAppStore: installs.contains { $0.kind == .mas }))
+            }
+    }
+
+    private func presented(when condition: Bool) -> Binding<Bool> {
+        Binding(get: { isPresented && condition }, set: { if !$0 { isPresented = false } })
+    }
+
+    private func summary(plan: InstallPlan, needsPassword: Int, hasAppStore: Bool) -> String {
+        var lines = ["Homebrew and the App Store will install these on this Mac."]
+        if !plan.alreadyInstalled.isEmpty { lines.append("\(plan.alreadyInstalled.count) already installed will be skipped.") }
+        if needsPassword > 0 { lines.append("\(needsPassword) will ask for your Mac password.") }
+        if hasAppStore { lines.append("App Store apps need you to be signed in to the App Store.") }
+        return lines.joined(separator: "\n")
     }
 }

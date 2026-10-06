@@ -23,7 +23,10 @@ final class AppModel {
 
     private(set) var installed = InstalledState()
     private(set) var installedError: String?
-    let homebrew: Homebrew?
+    /// Re-detected on each installed-state refresh, so installing Homebrew
+    /// while casky is open is picked up when the window comes back.
+    private(set) var homebrew: Homebrew?
+    private let locateHomebrew: () -> Homebrew?
 
     let kits: [Kit]
 
@@ -43,6 +46,14 @@ final class AppModel {
     /// An error the user needs to see now (file read/write failures).
     var alertMessage: String?
 
+    /// The current or last install run; nil when none is shown.
+    var run: RunState?
+    var isInstalling = false
+    /// Live output of the step being installed.
+    var currentOutput: [String] = []
+    /// A non-fatal problem during the run (e.g. `brew update` failed).
+    var runNote: String?
+
     private(set) var selection: [Item] = []
     private var selectedSet: Set<Item> = []
 
@@ -56,12 +67,13 @@ final class AppModel {
     init(
         fetch: CatalogFetch = CatalogFetch(),
         store: SetupStore = SetupStore(),
-        homebrew: Homebrew? = Homebrew(),
+        locateHomebrew: @escaping () -> Homebrew? = { Homebrew() },
         kits: [Kit] = AppModel.bundledKits()
     ) {
         self.fetch = fetch
         self.store = store
-        self.homebrew = homebrew
+        self.locateHomebrew = locateHomebrew
+        homebrew = locateHomebrew()
         self.kits = kits
         do {
             setups = try store.load()
@@ -109,6 +121,7 @@ final class AppModel {
     }
 
     func refreshInstalled() async {
+        if homebrew == nil { homebrew = locateHomebrew() }
         guard let homebrew else { return }
         do {
             installed = try await homebrew.installedState()
@@ -275,6 +288,7 @@ final class AppModel {
         case ToolError.launchFailed(let command, let reason): "\(command): \(reason)"
         case ToolError.missing(let tool): "\(tool) is not installed"
         case FetchError.http(let url, let status): "\(url.host() ?? "Server") returned \(status)"
+        case FetchError.noInstallerPackage: "The latest Homebrew release has no installer package."
         default: error.localizedDescription
         }
     }

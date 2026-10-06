@@ -73,4 +73,5 @@ struct CatalogFetch: Sendable {
 
 enum FetchError: Error, Equatable {
     case http(url: URL, status: Int)
+    case noInstallerPackage
 }

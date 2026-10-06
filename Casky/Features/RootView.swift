@@ -27,6 +27,9 @@ struct RootView: View {
         }
         .task { await model.start() }
         .modifier(Prompts())
+        .sheet(isPresented: Binding(get: { model.run != nil }, set: { if !$0 { model.dismissRun() } })) {
+            if let run = model.run { RunView(run: run) }
+        }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             model.importBrewfile(at: url)
