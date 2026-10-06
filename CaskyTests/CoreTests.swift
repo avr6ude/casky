@@ -213,3 +213,25 @@ import Testing
         #expect(AppStoreSearch.url(for: "ia writer").absoluteString.contains("term=ia%20writer"))
     }
 }
+
+@Suite struct InstalledStateTests {
+    @Test func decodesHomebrewTapsAndMas() throws {
+        let brewInfo = Data(#"""
+        {"formulae": [{"name": "git", "full_name": "git"}, {"name": "terraform", "full_name": "hashicorp/tap/terraform"}],
+         "casks": [{"token": "mods", "full_token": "charmbracelet/tap/mods"}, {"token": "firefox", "full_token": "firefox"}]}
+        """#.utf8)
+        let tapInfo = Data(#"[{"name": "hashicorp/tap"}, {"name": "charmbracelet/tap"}]"#.utf8)
+        let state = try InstalledState.decode(brewInfo: brewInfo, tapInfo: tapInfo, masList: "497799835  Xcode  (16.0)\n  937984704 Amphetamine (5.3)\n")
+
+        #expect(state.contains(.formula(try Ref(parsing: "hashicorp/homebrew-tap/terraform"))))
+        #expect(state.contains(.cask(try Ref(parsing: "charmbracelet/tap/mods"))))
+        #expect(!state.contains(.formula(try Ref(parsing: "firefox"))))
+        #expect(state.masApps == [497799835, 937984704])
+        #expect(state.taps == ["hashicorp/tap", "charmbracelet/tap"])
+    }
+
+    @Test func emptyMasListAndMissingMas() {
+        #expect(InstalledState.parseMasList("No installed apps found\n").isEmpty)
+        #expect(throws: (any Error).self) { try InstalledState.decode(brewInfo: Data("{}".utf8), tapInfo: Data("[]".utf8), masList: nil) }
+    }
+}

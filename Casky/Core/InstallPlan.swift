@@ -1,22 +1,5 @@
 import Foundation
 
-/// What is already on this Mac, as reported by `brew info --installed` and `mas list`.
-struct InstalledState: Sendable {
-    /// Full names (`git`, `owner/repo/tool`).
-    var formulae: Set<String> = []
-    var casks: Set<String> = []
-    var masApps: Set<Int> = []
-    var taps: Set<String> = []
-
-    func contains(_ item: Item) -> Bool {
-        switch item {
-        case .formula(let ref): formulae.contains(ref.fullName)
-        case .cask(let ref): casks.contains(ref.fullName)
-        case .mas(let id, _): masApps.contains(id)
-        }
-    }
-}
-
 /// One command the runner executes.
 struct InstallStep: Hashable, Sendable {
     enum Action: Hashable, Sendable {
