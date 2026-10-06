@@ -34,33 +34,28 @@ extension InstalledState {
     /// - Parameters:
     ///   - brewInfo: `brew info --json=v2 --installed`
     ///   - tapInfo: `brew tap-info --json --installed`
-    ///   - masList: `mas list`, or nil when `mas` is not installed.
-    static func decode(brewInfo: Data, tapInfo: Data, masList: String?) throws -> InstalledState {
+    ///   - masList: `mas list --json`, or nil when `mas` is not installed.
+    static func decode(brewInfo: Data, tapInfo: Data, masList: Data?) throws -> InstalledState {
         let info = try JSONDecoder().decode(BrewInfo.self, from: brewInfo)
         let taps = try JSONDecoder().decode([TapInfo].self, from: tapInfo)
         return InstalledState(
             formulae: Set(info.formulae.map { $0.full_name.lowercased() }),
             requestedFormulae: Set(info.formulae.filter { $0.installed.contains { $0.installed_on_request == true } }.map { $0.full_name.lowercased() }),
             casks: Set(info.casks.map { $0.full_token.lowercased() }),
-            masApps: masList.map(parseMasList) ?? [:],
+            masApps: try masList.map(parseMasList) ?? [:],
             taps: Set(taps.map { $0.name.lowercased() })
         )
     }
 
-    /// `mas list` prints one app per line: `497799835  Xcode  (16.0)`.
-    // ponytail: format taken from mas docs, not yet checked against a real
-    // install (mas is not on the dev machine); revisit when the engine lands.
-    static func parseMasList(_ output: String) -> [Int: String] {
+    /// `mas list --json`: a stream of JSON objects, one per app, with
+    /// `adamID` and `name` among many Spotlight-derived keys.
+    static func parseMasList(_ output: Data) throws -> [Int: String] {
         var apps: [Int: String] = [:]
-        for line in output.split(whereSeparator: \.isNewline) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let idText = trimmed.prefix { !$0.isWhitespace }
-            guard let id = Int(idText) else { continue }
-            var name = trimmed.dropFirst(idText.count).trimmingCharacters(in: .whitespaces)
-            if name.hasSuffix(")"), let open = name.lastIndex(of: "(") {
-                name = name[..<open].trimmingCharacters(in: .whitespaces)
-            }
-            apps[id] = name
+        for object in try JSONStream.objects(in: output) {
+            guard let app = try JSONSerialization.jsonObject(with: object) as? [String: Any],
+                  let name = app["name"] as? String else { continue }
+            let id = (app["adamID"] as? Int) ?? (app["adamID"] as? String).flatMap { Int($0) }
+            if let id, id != 0 { apps[id] = name }
         }
         return apps
     }
@@ -77,4 +72,38 @@ extension InstalledState {
     }
 
     private struct TapInfo: Decodable { let name: String }
+}
+
+/// Splits concatenated top-level JSON objects (`{...}{...}` or one per line)
+/// so each can go through `JSONSerialization`. Only finds boundaries; the
+/// objects themselves are parsed by Foundation.
+enum JSONStream {
+    struct Malformed: Error {}
+
+    static func objects(in data: Data) throws -> [Data] {
+        var objects: [Data] = []
+        var depth = 0, start = 0
+        var inString = false, escaped = false
+        for (offset, byte) in data.enumerated() {
+            if inString {
+                if escaped { escaped = false }
+                else if byte == UInt8(ascii: "\\") { escaped = true }
+                else if byte == UInt8(ascii: "\"") { inString = false }
+                continue
+            }
+            switch byte {
+            case UInt8(ascii: "\""): inString = true
+            case UInt8(ascii: "{"):
+                if depth == 0 { start = offset }
+                depth += 1
+            case UInt8(ascii: "}"):
+                depth -= 1
+                guard depth >= 0 else { throw Malformed() }
+                if depth == 0 { objects.append(data.subdata(in: start..<offset + 1)) }
+            default: break
+            }
+        }
+        guard depth == 0, !inString else { throw Malformed() }
+        return objects
+    }
 }

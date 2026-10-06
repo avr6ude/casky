@@ -1,0 +1,14 @@
+#!/bin/sh
+# SUDO_ASKPASS helper for casky. sudo runs this when an install needs admin
+# rights; it shows a native password dialog and prints the answer to stdout,
+# which goes straight back to sudo. Nothing is stored or logged.
+# The item name is passed as an argument, not spliced into the script, so a
+# name can't change what the AppleScript does. Cancel exits non-zero and sudo
+# fails that one install.
+exec /usr/bin/osascript - "${CASKY_ASKPASS_ITEM:-this item}" <<'APPLESCRIPT'
+on run argv
+    set itemName to item 1 of argv
+    set reply to display dialog "casky needs your Mac password to install " & itemName & "." default answer "" with hidden answer with title "casky" with icon caution buttons {"Cancel", "Install"} default button "Install" cancel button "Cancel"
+    return text returned of reply
+end run
+APPLESCRIPT

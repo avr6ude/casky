@@ -26,7 +26,9 @@ struct Homebrew: Sendable {
 
     /// Built from an allowlist rather than inherited: a GUI app's environment
     /// is not the user's shell anyway, and nothing else should leak into brew.
-    var environment: [String: String] {
+    /// Only installs get the password helper (`askpassItem`), naming the item
+    /// the prompt is for.
+    func environment(askpassItem: String? = nil) -> [String: String] {
         let inherited = ProcessInfo.processInfo.environment
         var environment = ["HOME", "USER", "LOGNAME", "TMPDIR", "LANG"].reduce(into: [String: String]()) {
             $0[$1] = inherited[$1]
@@ -35,22 +37,47 @@ struct Homebrew: Sendable {
         environment["HOMEBREW_NO_ENV_HINTS"] = "1"
         // Preflight runs `brew update` once instead of before every command.
         environment["HOMEBREW_NO_AUTO_UPDATE"] = "1"
+        if let askpassItem, let askpass = Bundle.main.url(forResource: "askpass", withExtension: nil) {
+            environment["SUDO_ASKPASS"] = askpass.path
+            environment["CASKY_ASKPASS_ITEM"] = askpassItem
+        }
         return environment
     }
 
     func run(_ arguments: [String]) async throws -> Data {
-        try await ToolRunner.run(executable, arguments: arguments, environment: environment)
+        try await ToolRunner.run(executable, arguments: arguments, environment: environment())
     }
 
     func runMas(_ arguments: [String]) async throws -> Data {
         guard let mas = masExecutable else { throw ToolError.missing("mas") }
-        return try await ToolRunner.run(mas, arguments: arguments, environment: environment)
+        return try await ToolRunner.run(mas, arguments: arguments, environment: environment())
+    }
+
+    /// Runs one plan step, streaming its output, and returns the exit status.
+    /// App Store installs need root (`mas get` refuses otherwise), so they go
+    /// through `sudo -A` and the same password helper Homebrew uses.
+    func execute(_ action: InstallStep.Action, itemName: String, onLine: @escaping @Sendable (String) -> Void) async throws -> Int32 {
+        let environment = environment(askpassItem: itemName)
+        switch action {
+        case .tap(let tap):
+            return try await ToolRunner.stream(executable, arguments: ["tap", tap], environment: environment, onLine: onLine)
+        case .install(.formula(let ref)):
+            return try await ToolRunner.stream(executable, arguments: ["install", ref.fullName], environment: environment, onLine: onLine)
+        case .install(.cask(let ref)):
+            return try await ToolRunner.stream(executable, arguments: ["install", "--cask", ref.fullName], environment: environment, onLine: onLine)
+        case .install(.mas(let id, _)):
+            guard let mas = masExecutable else { throw ToolError.missing("mas") }
+            return try await ToolRunner.stream(
+                URL(fileURLWithPath: "/usr/bin/sudo"), arguments: ["-A", mas.path, "get", String(id)],
+                environment: environment, onLine: onLine
+            )
+        }
     }
 
     func installedState() async throws -> InstalledState {
         async let brewInfo = run(["info", "--json=v2", "--installed"])
         async let tapInfo = run(["tap-info", "--json", "--installed"])
-        let masList = masExecutable == nil ? nil : String(decoding: try await runMas(["list"]), as: UTF8.self)
+        let masList = masExecutable == nil ? nil : try await runMas(["list", "--json"])
         return try InstalledState.decode(brewInfo: try await brewInfo, tapInfo: try await tapInfo, masList: masList)
     }
 }
@@ -73,6 +100,66 @@ enum ToolRunner {
                 })
             }
         }
+    }
+
+    /// Runs a command with stdout and stderr merged, delivering output line by
+    /// line (`\r` progress updates count as lines), and returns the exit status.
+    static func stream(
+        _ executable: URL,
+        arguments: [String],
+        environment: [String: String],
+        onLine: @escaping @Sendable (String) -> Void
+    ) async throws -> Int32 {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(with: Result {
+                    try streamBlocking(executable, arguments: arguments, environment: environment, onLine: onLine)
+                })
+            }
+        }
+    }
+
+    private static func streamBlocking(
+        _ executable: URL,
+        arguments: [String],
+        environment: [String: String],
+        onLine: (String) -> Void
+    ) throws -> Int32 {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
+        process.environment = environment
+        process.standardInput = FileHandle.nullDevice
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = output
+
+        do {
+            try process.run()
+        } catch {
+            let command = ([executable.lastPathComponent] + arguments).joined(separator: " ")
+            throw ToolError.launchFailed(command: command, reason: error.localizedDescription)
+        }
+        let handle = output.fileHandleForReading
+        var buffer = Data()
+        func emitLines(flush: Bool) {
+            while let end = buffer.firstIndex(where: { $0 == 0x0A || $0 == 0x0D }) {
+                let line = String(decoding: buffer[buffer.startIndex..<end], as: UTF8.self)
+                if !line.isEmpty { onLine(line) }
+                buffer.removeSubrange(buffer.startIndex...end)
+            }
+            if flush, !buffer.isEmpty {
+                onLine(String(decoding: buffer, as: UTF8.self))
+                buffer.removeAll()
+            }
+        }
+        while case let chunk = handle.availableData, !chunk.isEmpty {
+            buffer.append(chunk)
+            emitLines(flush: false)
+        }
+        emitLines(flush: true)
+        process.waitUntilExit()
+        return process.terminationStatus
     }
 
     private static func runBlocking(_ executable: URL, arguments: [String], environment: [String: String]) throws -> Data {

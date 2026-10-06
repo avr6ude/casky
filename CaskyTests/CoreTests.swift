@@ -223,25 +223,34 @@ import Testing
          "casks": [{"token": "mods", "full_token": "charmbracelet/tap/mods"}, {"token": "firefox", "full_token": "firefox"}]}
         """#.utf8)
         let tapInfo = Data(#"[{"name": "hashicorp/tap"}, {"name": "charmbracelet/tap"}]"#.utf8)
-        let state = try InstalledState.decode(brewInfo: brewInfo, tapInfo: tapInfo, masList: "497799835  Xcode  (16.0)\n  937984704 Amphetamine (5.3)\n")
+        let masList = Data(#"""
+        {"adamID":497799835,"bundleID":"com.apple.dt.Xcode","name":"Xcode","version":"16.0"}
+        {
+          "adamID": "937984704",
+          "name": "Amph {etamine} \"x\"",
+          "nested": {"a": [1, {"b": "}"}]}
+        }
+        """#.utf8)
+        let state = try InstalledState.decode(brewInfo: brewInfo, tapInfo: tapInfo, masList: masList)
 
         #expect(state.contains(.formula(try Ref(parsing: "hashicorp/homebrew-tap/terraform"))))
         #expect(state.contains(.cask(try Ref(parsing: "charmbracelet/tap/mods"))))
         #expect(!state.contains(.formula(try Ref(parsing: "firefox"))))
-        #expect(state.masApps == [497799835: "Xcode", 937984704: "Amphetamine"])
+        #expect(state.masApps == [497799835: "Xcode", 937984704: #"Amph {etamine} "x""#])
         #expect(state.taps == ["hashicorp/tap", "charmbracelet/tap"])
         #expect(state.requestedFormulae == ["git"])
         #expect(state.snapshot() == [
             .formula(try Ref(parsing: "git")),
             .cask(try Ref(parsing: "charmbracelet/tap/mods")),
             .cask(try Ref(parsing: "firefox")),
-            .mas(id: 937984704, name: "Amphetamine"),
+            .mas(id: 937984704, name: #"Amph {etamine} "x""#),
             .mas(id: 497799835, name: "Xcode"),
         ])
     }
 
-    @Test func emptyMasListAndMissingMas() {
-        #expect(InstalledState.parseMasList("No installed apps found\n").isEmpty)
+    @Test func emptyMasListAndMissingMas() throws {
+        #expect(try InstalledState.parseMasList(Data()).isEmpty)
+        #expect(throws: JSONStream.Malformed.self) { try InstalledState.parseMasList(Data(#"{"name": "x""#.utf8)) }
         #expect(throws: (any Error).self) { try InstalledState.decode(brewInfo: Data("{}".utf8), tapInfo: Data("[]".utf8), masList: nil) }
     }
 }

@@ -21,6 +21,16 @@ import Testing
         #expect(String(decoding: output, as: UTF8.self) == "no-input\n")
     }
 
+    @Test func streamsMergedOutputLineByLine() async throws {
+        let lines = LineCollector()
+        let status = try await ToolRunner.stream(
+            sh, arguments: ["-c", "echo one; echo two >&2; printf 'progress 1\\rprogress 2\\nlast'; exit 4"],
+            environment: [:], onLine: lines.append
+        )
+        #expect(status == 4)
+        #expect(lines.all == ["one", "two", "progress 1", "progress 2", "last"])
+    }
+
     @Test func environmentIsExactlyWhatWasPassed() async throws {
         let output = try await ToolRunner.run(URL(fileURLWithPath: "/usr/bin/env"), arguments: [], environment: ["ONLY": "this"])
         #expect(String(decoding: output, as: UTF8.self) == "ONLY=this\n")
@@ -31,8 +41,14 @@ import Testing
     @Test func environmentIsAllowlisted() {
         let brew = Homebrew(executable: URL(fileURLWithPath: "/opt/homebrew/bin/brew"))
         #expect(brew.prefix.path == "/opt/homebrew")
-        #expect(Set(brew.environment.keys).isSubset(of: ["HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "PATH", "HOMEBREW_NO_ENV_HINTS", "HOMEBREW_NO_AUTO_UPDATE"]))
-        #expect(brew.environment["PATH"] == "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+        let base: Set = ["HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "PATH", "HOMEBREW_NO_ENV_HINTS", "HOMEBREW_NO_AUTO_UPDATE"]
+        #expect(Set(brew.environment().keys).isSubset(of: base))
+        #expect(brew.environment()["PATH"] == "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+
+        // Installs get the password helper, naming the item; queries never do.
+        let install = brew.environment(askpassItem: "Zoom")
+        #expect(install["CASKY_ASKPASS_ITEM"] == "Zoom")
+        #expect(install["SUDO_ASKPASS"].map { FileManager.default.isExecutableFile(atPath: $0) } == true)
     }
 
     /// Read-only smoke test against the real Homebrew on this Mac.
@@ -67,4 +83,11 @@ import Testing
         try Data("not json".utf8).write(to: fetch.cacheFile)
         #expect(fetch.cached() == nil)
     }
+}
+
+private final class LineCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var lines: [String] = []
+    var all: [String] { lock.withLock { lines } }
+    func append(_ line: String) { lock.withLock { lines.append(line) } }
 }
