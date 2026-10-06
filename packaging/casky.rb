@@ -1,4 +1,4 @@
-# Cask for avrdude/homebrew-tap. After each release, copy this file to
+# Cask for avr6ude/homebrew-tap. After each release, copy this file to
 # Casks/casky.rb in the tap and set version and sha256 from release.sh output.
 cask "casky" do
   version "0.1.0"
