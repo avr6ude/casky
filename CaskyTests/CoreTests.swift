@@ -235,3 +235,57 @@ import Testing
         #expect(throws: (any Error).self) { try InstalledState.decode(brewInfo: Data("{}".utf8), tapInfo: Data("[]".utf8), masList: nil) }
     }
 }
+
+@Suite struct BrewfileReadTests {
+    @Test func roundTripsWhatTheWriterProduces() throws {
+        let items: [Item] = [
+            .formula(try Ref(parsing: "git")),
+            .formula(try Ref(parsing: "hashicorp/tap/terraform")),
+            .formula(.masTool),
+            .cask(try Ref(parsing: "charmbracelet/tap/mods")),
+            .mas(id: 1, name: #"A "B" #{x} \ C"#),
+        ]
+        let result = Brewfile.read(Brewfile.render(items))
+        #expect(result == Brewfile.Import(items: items))
+    }
+
+    @Test func readsCommonHandWrittenForms() throws {
+        let text = """
+        # My setup
+        tap "homebrew/bundle"
+          brew 'git'   # version control
+        brew "postgresql@16", restart_service: true
+        cask "firefox", args: { appdir: "~/Apps" }
+        mas "Xcode",id:497799835
+        """
+        let result = Brewfile.read(text)
+        #expect(result.items == [
+            .formula(try Ref(parsing: "git")),
+            .formula(try Ref(parsing: "postgresql@16")),
+            .cask(try Ref(parsing: "firefox")),
+            .mas(id: 497799835, name: "Xcode"),
+        ])
+        #expect(result.skipped.isEmpty)
+        #expect(result.optionsIgnored == 2)
+    }
+
+    @Test func skipsAnythingBeyondPlainLiterals() {
+        let hostile = [
+            ##"brew "#{`whoami`}""##,
+            #"brew "x" if system("touch /tmp/pwned")"#,
+            #"cask "a"; system "rm -rf ~""#,
+            #"vscode "golang.go""#,
+            #"tap "a/b", "https://example.com/b.git""#,
+            #"mas "X", id: 1, extra: true"#,
+            #"mas "X""#,
+            #"brew "bad name""#,
+            #"brew "unterminated"#,
+            #"brew "tab\there""#,
+            "if OS.mac?",
+            "brew(\"x\")",
+        ]
+        let result = Brewfile.read(hostile.joined(separator: "\n"))
+        #expect(result.items.isEmpty)
+        #expect(result.skipped == hostile)
+    }
+}

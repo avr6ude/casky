@@ -1,9 +1,7 @@
 import Foundation
 
-/// Renders a selection as a Brewfile that works on its own with `brew bundle`.
-///
-/// Import goes the other way through Homebrew's own parser (`brew bundle list`),
-/// so this is a writer only.
+/// Writes Brewfiles that work on their own with `brew bundle`, and reads the
+/// plain subset back.
 enum Brewfile {
     static func render(_ items: [Item]) -> String {
         let items = items.uniqued()
@@ -48,6 +46,148 @@ enum Brewfile {
             escaped.append(character)
         }
         return "\"\(escaped)\""
+    }
+}
+
+// MARK: - Reading
+
+extension Brewfile {
+    struct Import: Equatable, Sendable {
+        var items: [Item] = []
+        /// Lines casky did not import, as written in the file.
+        var skipped: [String] = []
+        /// Lines imported without their options (e.g. `restart_service: true`).
+        var optionsIgnored = 0
+    }
+
+    /// Reads plain `tap`, `brew`, `cask` and `mas "Name", id: N` lines with
+    /// literal strings and reports everything else as skipped.
+    ///
+    /// A Brewfile is Ruby, and Homebrew's own reader (`brew bundle list`)
+    /// evaluates it, so previewing a file someone shared would run their code.
+    /// This reader never executes anything: anything beyond the plain subset
+    /// (conditionals, interpolation, other entry types) is left out and shown.
+    static func read(_ text: String) -> Import {
+        var result = Import()
+        for line in text.split(whereSeparator: \.isNewline) {
+            switch Line(line) {
+            case .ignored: break
+            case .skipped: result.skipped.append(line.trimmingCharacters(in: .whitespaces))
+            case .item(let item, let hadOptions):
+                result.items.append(item)
+                if hadOptions { result.optionsIgnored += 1 }
+            }
+        }
+        result.items = result.items.uniqued()
+        return result
+    }
+
+    private enum Line {
+        /// Blank, comment, or a tap (taps are implied by qualified items).
+        case ignored
+        case skipped
+        case item(Item, hadOptions: Bool)
+
+        init(_ line: Substring) {
+            var reader = LineReader(rest: line)
+            reader.skipSpaces()
+            if reader.isAtEnd { self = .ignored; return }
+            guard let keyword = reader.word() else { self = .skipped; return }
+            reader.skipSpaces()
+            guard let name = reader.stringLiteral() else { self = .skipped; return }
+            reader.skipSpaces()
+            switch keyword {
+            case "tap":
+                // A second argument is a custom remote URL, which casky can't express.
+                self = reader.isAtEnd ? .ignored : .skipped
+            case "brew", "cask":
+                guard let ref = try? Ref(parsing: name) else { self = .skipped; return }
+                let item: Item = keyword == "brew" ? .formula(ref) : .cask(ref)
+                if reader.isAtEnd {
+                    self = .item(item, hadOptions: false)
+                } else if reader.consume(",") {
+                    self = .item(item, hadOptions: true)
+                } else {
+                    self = .skipped
+                }
+            case "mas":
+                guard reader.consume(",") else { self = .skipped; return }
+                reader.skipSpaces()
+                guard reader.consume("id:") else { self = .skipped; return }
+                reader.skipSpaces()
+                guard let id = reader.digits() else { self = .skipped; return }
+                reader.skipSpaces()
+                self = reader.isAtEnd ? .item(.mas(id: id, name: name), hadOptions: false) : .skipped
+            default:
+                self = .skipped
+            }
+        }
+    }
+
+    private struct LineReader {
+        var rest: Substring
+
+        /// End of line or a trailing comment.
+        var isAtEnd: Bool { rest.isEmpty || rest.first == "#" }
+
+        mutating func skipSpaces() {
+            rest = rest.drop { $0 == " " || $0 == "\t" }
+        }
+
+        mutating func consume(_ token: String) -> Bool {
+            guard rest.hasPrefix(token) else { return false }
+            rest = rest.dropFirst(token.count)
+            return true
+        }
+
+        mutating func word() -> String? {
+            let word = rest.prefix { $0.isLetter || $0 == "_" }
+            guard !word.isEmpty else { return nil }
+            rest = rest.dropFirst(word.count)
+            return String(word)
+        }
+
+        mutating func digits() -> Int? {
+            let digits = rest.prefix { $0.isASCII && $0.isNumber }
+            guard let value = Int(digits) else { return nil }
+            rest = rest.dropFirst(digits.count)
+            return value
+        }
+
+        /// A Ruby string literal without interpolation. Double quotes accept
+        /// only the escapes the writer produces (`\\`, `\"`, `\#`); an
+        /// unescaped `#{` would be code, so the literal is rejected.
+        mutating func stringLiteral() -> String? {
+            guard let quote = rest.first, quote == "\"" || quote == "'" else { return nil }
+            var value = ""
+            var index = rest.index(after: rest.startIndex)
+            while index < rest.endIndex {
+                let character = rest[index]
+                if character == quote {
+                    rest = rest[rest.index(after: index)...]
+                    return value
+                }
+                if character == "\\" {
+                    index = rest.index(after: index)
+                    guard index < rest.endIndex else { return nil }
+                    let escaped = rest[index]
+                    if quote == "\"" {
+                        guard escaped == "\\" || escaped == "\"" || escaped == "#" else { return nil }
+                        value.append(escaped)
+                    } else if escaped == "\\" || escaped == "'" {
+                        value.append(escaped)
+                    } else {
+                        value.append("\\")
+                        value.append(escaped)
+                    }
+                } else {
+                    if quote == "\"", character == "#", rest[index...].hasPrefix("#{") { return nil }
+                    value.append(character)
+                }
+                index = rest.index(after: index)
+            }
+            return nil
+        }
     }
 }
 
