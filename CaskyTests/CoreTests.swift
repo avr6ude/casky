@@ -299,3 +299,48 @@ import Testing
         #expect(result.skipped == hostile)
     }
 }
+
+@Suite struct RunStateTests {
+    private func ref(_ raw: String) throws -> Ref { try Ref(parsing: raw) }
+
+    @Test func runsStepsInOrderAndSkipsDependentsOfFailures() throws {
+        let tool = Item.cask(try ref("a/b/tool"))
+        let git = Item.formula(try ref("git"))
+        let app = Item.mas(id: 7, name: "App")
+        var run = RunState(plan: InstallPlan(selection: [tool, git, app], installed: InstalledState()))
+
+        #expect(run.nextStep()?.action == .tap("a/b"))
+        run.finish(.failed(status: 1, output: ["no such tap"]))
+        #expect(run.nextStep()?.action == .install(.formula(.masTool)))
+        run.finish(.installed)
+        #expect(run.nextStep()?.action == .install(git))
+        run.finish(.installed)
+        // tool's tap failed, so it is skipped without running.
+        #expect(run.nextStep()?.action == .install(app))
+        run.finish(.installed)
+        #expect(run.nextStep() == nil)
+
+        #expect(run.isFinished)
+        #expect(run.outcomes[.install(tool)] == .skipped(reason: "a/b didn't install"))
+        #expect(run.failedCount == 1)
+    }
+
+    @Test func stopFinishesCurrentStepThenSkipsTheRest() throws {
+        let items = try ["a", "b", "c"].map { Item.cask(try ref($0)) }
+        var run = RunState(plan: InstallPlan(selection: items, installed: InstalledState()))
+
+        #expect(run.nextStep()?.action == .install(items[0]))
+        run.requestStop()
+        run.finish(.installed)
+        #expect(run.nextStep() == nil)
+        #expect(run.outcomes[.install(items[0])] == .installed)
+        #expect(run.outcomes[.install(items[1])] == .skipped(reason: "Stopped"))
+        #expect(run.outcomes[.install(items[2])] == .skipped(reason: "Stopped"))
+        #expect(run.isFinished)
+    }
+
+    @Test func emptyPlanIsFinishedImmediately() {
+        var run = RunState(plan: InstallPlan(selection: [], installed: InstalledState()))
+        #expect(run.nextStep() == nil && run.isFinished)
+    }
+}
