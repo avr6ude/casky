@@ -3,6 +3,20 @@ import Foundation
 /// Icons a web page declares with `<link rel="icon" | "apple-touch-icon" ...>`,
 /// best first.
 enum WebIcons {
+    /// The page's share image (`og:image`, else `twitter:image`), often a
+    /// product screenshot.
+    static func previewImage(in html: Data, baseURL: URL) -> URL? {
+        guard let document = try? XMLDocument(data: html, options: [.documentTidyHTML]) else { return nil }
+        for key in ["og:image", "twitter:image"] {
+            let path = "//meta[@property='\(key)' or @name='\(key)']/@content"
+            if let content = (try? document.nodes(forXPath: path))?.first?.stringValue,
+               let url = URL(string: content, relativeTo: baseURL)?.absoluteURL, url.scheme == "https" {
+                return url
+            }
+        }
+        return nil
+    }
+
     /// Ranked by declared size (an apple-touch-icon without `sizes` counts as
     /// 180px, other undeclared sizes as 32px). Icons tied to a color scheme
     /// via `media` go last, since they may not suit the app's appearance.

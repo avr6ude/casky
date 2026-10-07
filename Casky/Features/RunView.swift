@@ -62,7 +62,7 @@ struct RunView: View {
                     .disabled(run.stopRequested)
             } else {
                 if run.failedCount > 0 || run.stopRequested {
-                    Button("Retry Unfinished") { Task { await model.install() } }
+                    Button("Retry Unfinished") { Task { await model.install(model.runItems) } }
                 }
                 Button("Done") { model.dismissRun() }
                     .keyboardShortcut(.defaultAction)

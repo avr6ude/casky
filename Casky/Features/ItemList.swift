@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// A list of installable items. Click a checkbox, or highlight rows and press
-/// Space or double-click, to add or remove them from the selection.
+/// A list of installable items.
+/// - Checkbox, or Return: add to / remove from the selection.
+/// - Space: Quick Look-style preview, as in Finder.
+/// - Double-click: install right away (or preview, if already installed).
 struct ItemList: View {
     @Environment(AppModel.self) private var model
     let entries: [CatalogEntry]
@@ -14,7 +16,8 @@ struct ItemList: View {
                     entry: entry,
                     isSelected: model.isSelected(entry.item),
                     isInstalled: model.isInstalled(entry.item),
-                    isManaged: model.isManaged(entry.item)
+                    isManaged: model.isManaged(entry.item),
+                    preview: { model.previewEntry = entry }
                 ) {
                     model.toggle(entry.item)
                 }
@@ -22,18 +25,44 @@ struct ItemList: View {
             }
         }
         .onKeyPress(.space) {
-            guard !highlighted.isEmpty else { return .ignored }
-            model.toggleAll(entries.map(\.item).filter(highlighted.contains))
+            guard let entry = entries.first(where: { highlighted.contains($0.item) }) else { return .ignored }
+            model.previewEntry = entry
             return .handled
         }
-        .contextMenu(forSelectionType: Item.self) { items in
-            let items = entries.map(\.item).filter(items.contains)
+        .onKeyPress(.return) {
+            guard !highlighted.isEmpty else { return .ignored }
+            model.toggleAll(items(in: highlighted))
+            return .handled
+        }
+        .contextMenu(forSelectionType: Item.self) { clicked in
+            let items = items(in: clicked)
+            if items.count == 1, let entry = entries.first(where: { $0.item == items[0] }) {
+                Button("Quick Look") { model.previewEntry = entry }
+            }
+            let missing = items.filter { !model.isInstalled($0) }
+            if !missing.isEmpty {
+                Button(missing.count == 1 ? "Install Now" : "Install \(missing.count) Now") {
+                    Task { await model.install(missing) }
+                }
+                .disabled(model.isInstalling || model.homebrew == nil)
+            }
             Button(items.allSatisfy(model.isSelected) ? "Remove from Selection" : "Add to Selection") {
                 model.toggleAll(items)
             }
-        } primaryAction: { items in
-            model.toggleAll(entries.map(\.item).filter(items.contains))
+        } primaryAction: { clicked in
+            let items = items(in: clicked)
+            let missing = items.filter { !model.isInstalled($0) }
+            if missing.isEmpty || model.homebrew == nil {
+                model.previewEntry = entries.first { clicked.contains($0.item) }
+            } else if !model.isInstalling {
+                Task { await model.install(missing) }
+            }
         }
+    }
+
+    /// In list order, not set order.
+    private func items(in set: Set<Item>) -> [Item] {
+        entries.map(\.item).filter(set.contains)
     }
 }
 
@@ -42,6 +71,7 @@ struct ItemRow: View {
     let isSelected: Bool
     let isInstalled: Bool
     var isManaged = true
+    var preview: (() -> Void)?
     let toggle: () -> Void
 
     var body: some View {
@@ -91,12 +121,21 @@ struct ItemRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .help(entry.item.technicalName)
+
+            if let preview {
+                Button(action: preview) {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("Quick Look (Space)")
+                .accessibilityLabel("Quick Look \(entry.title)")
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-        .accessibilityAction(named: isSelected ? "Remove from selection" : "Add to selection", toggle)
+        // Children stay reachable: the checkbox selects, the info button previews.
+        .accessibilityElement(children: .contain)
     }
 }
 

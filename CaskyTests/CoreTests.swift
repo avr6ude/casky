@@ -380,3 +380,47 @@ import Testing
         #expect(WebIcons.declared(in: Data("not html at all".utf8), baseURL: URL(string: "https://example.com")!).isEmpty)
     }
 }
+
+@Suite struct AppDetailsTests {
+    @Test func caskFacts() throws {
+        let json = Data(#"""
+        {"version": "1.140.0", "auto_updates": true, "depends_on": {"macos": {">=": ["12"]}}, "caveats": null,
+         "url": "https://update.code.visualstudio.com/1.140.0/darwin-arm64/stable",
+         "analytics": {"install": {"30d": {"visual-studio-code": 19444}, "365d": {"visual-studio-code": 478813}}}}
+        """#.utf8)
+        let details = try AppDetails.fromCask(json)
+        #expect(details.facts.map(\.label) == ["Version", "Updates", "Requires", "Installs, last 30 days", "Installs, last year", "Downloads from"])
+        #expect(details.facts.first { $0.label == "Requires" }?.value == "macOS 12 or later")
+        #expect(details.facts.first { $0.label == "Downloads from" }?.value == "update.code.visualstudio.com")
+        #expect(details.caveats == nil)
+    }
+
+    @Test func formulaFactsSumVariants() throws {
+        let json = Data(#"""
+        {"versions": {"stable": "15.2.0"}, "license": "Unlicense", "dependencies": ["pcre2"], "caveats": "  Shell completions installed.  ",
+         "analytics": {"install_on_request": {"30d": {"ripgrep": 22543, "ripgrep --HEAD": 22}, "365d": {"ripgrep": 1}}}}
+        """#.utf8)
+        let details = try AppDetails.fromFormula(json)
+        #expect(details.facts.first { $0.label == "Depends on" }?.value == "pcre2")
+        #expect(details.facts.first { $0.label == "Installs, last 30 days" }?.value == 22565.formatted())
+        #expect(details.caveats == "Shell completions installed.")
+    }
+
+    @Test func appStoreDetails() throws {
+        let json = Data(#"""
+        {"resultCount": 1, "results": [{"formattedPrice": "Free", "averageUserRating": 4.75, "userRatingCount": 1200, "version": "5.3",
+          "fileSizeBytes": "6671277", "minimumOsVersion": "10.13", "primaryGenreName": "Utilities", "sellerName": "William Gustafson",
+          "description": "Keeps your Mac awake.", "screenshotUrls": ["https://example.com/1.jpg", "https://example.com/2.jpg"]}]}
+        """#.utf8)
+        let details = try AppDetails.fromAppStore(json)
+        #expect(details.screenshots.count == 2)
+        #expect(details.about == "Keeps your Mac awake.")
+        #expect(details.facts.first { $0.label == "Rating" }?.value.hasPrefix("4.8 ★") == true)
+        #expect(throws: DetailsError.self) { try AppDetails.fromAppStore(Data(#"{"results": []}"#.utf8)) }
+    }
+
+    @Test func pagePreviewImage() {
+        let html = Data(#"<html><head><meta property="og:image" content="/og.png"><meta name="twitter:image" content="https://x.example/t.png"></head></html>"#.utf8)
+        #expect(WebIcons.previewImage(in: html, baseURL: URL(string: "https://example.com/app/")!)?.absoluteString == "https://example.com/og.png")
+    }
+}

@@ -1,8 +1,9 @@
 import Foundation
 
 extension AppModel {
-    /// What Install would do right now, for the confirmation dialog.
-    func previewPlan() -> InstallPlan {
+    /// What installing `items` (the selection by default) would do right now.
+    func previewPlan(for items: [Item]? = nil) -> InstallPlan {
+        let selection = items ?? selection
         let bundles = selection.compactMap { item in entry(for: item)?.appBundleName.map { (item, $0) } }
         return InstallPlan(
             selection: selection, installed: installed,
@@ -11,15 +12,17 @@ extension AppModel {
         )
     }
 
-    /// Installs the selection one step at a time. Retrying is the same call:
-    /// items that installed last time are now installed and drop out.
-    func install() async {
+    /// Installs `items` (the selection by default) one step at a time.
+    /// Retrying is the same call: whatever installed last time drops out.
+    func install(_ items: [Item]? = nil) async {
         guard !isInstalling, let homebrew else { return }
         isInstalling = true
         defer { isInstalling = false }
 
+        let items = items ?? selection
+        runItems = items
         await refreshInstalled()
-        run = RunState(plan: previewPlan())
+        run = RunState(plan: previewPlan(for: items))
         runNote = nil
         currentOutput = []
 

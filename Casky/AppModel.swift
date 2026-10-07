@@ -63,6 +63,10 @@ final class AppModel {
     var currentOutput: [String] = []
     /// A non-fatal problem during the run (e.g. `brew update` failed).
     var runNote: String?
+    /// What the current or last run was asked to install, for Retry.
+    var runItems: [Item] = []
+    /// The item shown in the Quick Look-style preview.
+    var previewEntry: CatalogEntry?
 
     private(set) var selection: [Item] = []
     private var selectedSet: Set<Item> = []

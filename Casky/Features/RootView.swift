@@ -32,6 +32,9 @@ struct RootView: View {
         .sheet(isPresented: Binding(get: { model.run != nil }, set: { if !$0 { model.dismissRun() } })) {
             if let run = model.run { RunView(run: run) }
         }
+        .sheet(item: Bindable(model).previewEntry) { entry in
+            AppPreview(entry: entry)
+        }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             model.importBrewfile(at: url)
