@@ -36,10 +36,15 @@ final class AppModel {
     /// is never overwritten with an empty list.
     private(set) var setupsLoadError: String?
 
+    private(set) var taps: [TapListing] = []
+    /// Same contract as `setupsLoadError`, for taps.json.
+    private(set) var tapsLoadError: String?
+
     /// A name prompt the window should show.
     enum NamePrompt {
         case newSetup(items: [Item], suggestedName: String)
         case rename(SavedSetup)
+        case addTap
     }
     var namePrompt: NamePrompt?
     /// Result of the last Brewfile import, shown as a summary.
@@ -59,7 +64,9 @@ final class AppModel {
     private var selectedSet: Set<Item> = []
 
     private let fetch: CatalogFetch
-    private let store: SetupStore
+    private let tapFetch: TapFetch
+    private let setupsFile: JSONFile<[SavedSetup]>
+    private let tapsFile: JSONFile<[TapListing]>
     /// App Store results seen so far, so selected App Store items keep their
     /// details. Bounded by what the user searched for.
     private var appStoreEntries: [Item: CatalogEntry] = [:]
@@ -67,21 +74,29 @@ final class AppModel {
 
     init(
         fetch: CatalogFetch = CatalogFetch(),
-        store: SetupStore = SetupStore(),
+        tapFetch: TapFetch = TapFetch(),
+        dataDirectory: URL = URL.applicationSupportDirectory.appending(path: "casky"),
         defaults: UserDefaults = .standard,
         locateHomebrew: @escaping (_ userPath: String?) -> Homebrew? = { Homebrew(userPath: $0) },
         kits: [Kit] = AppModel.bundledKits()
     ) {
         self.fetch = fetch
-        self.store = store
+        self.tapFetch = tapFetch
+        setupsFile = JSONFile(file: dataDirectory.appending(path: "setups.json"))
+        tapsFile = JSONFile(file: dataDirectory.appending(path: "taps.json"))
         self.defaults = defaults
         self.locateHomebrew = locateHomebrew
         homebrew = locateHomebrew(defaults.string(forKey: Self.homebrewPathKey))
         self.kits = kits
         do {
-            setups = try store.load()
+            setups = try setupsFile.load(empty: [])
         } catch {
-            setupsLoadError = "Couldn't read your saved setups (\(store.file.path)): \(error.localizedDescription)"
+            setupsLoadError = "Couldn't read your saved setups (\(setupsFile.file.path)): \(error.localizedDescription)"
+        }
+        do {
+            taps = try tapsFile.load(empty: [])
+        } catch {
+            tapsLoadError = "Couldn't read your taps (\(tapsFile.file.path)): \(error.localizedDescription)"
         }
     }
 
@@ -141,7 +156,15 @@ final class AppModel {
             return appStoreEntries[item]
                 ?? CatalogEntry(item: item, title: name, summary: nil, homepage: URL(string: "https://apps.apple.com/app/id\(id)"), installs: 0, needsAdmin: false)
         }
-        return catalog?.entry(for: item)
+        if let entry = catalog?.entry(for: item) { return entry }
+        // Items from an added tap aren't in the Homebrew catalog.
+        switch item {
+        case .formula(let ref), .cask(let ref):
+            guard let name = ref.tap, let tap = taps.first(where: { $0.name == name }) else { return nil }
+            return CatalogEntry(item: item, title: ref.name, summary: "From \(tap.name)", homepage: tap.repositoryURL, installs: 0, needsAdmin: false)
+        case .mas:
+            return nil
+        }
     }
 
     /// Always returns something to show: selected items stay visible even
@@ -243,7 +266,7 @@ final class AppModel {
     private func persistSetups() {
         guard setupsLoadError == nil else { return }
         do {
-            try store.save(setups)
+            try setupsFile.save(setups)
         } catch {
             alertMessage = "Couldn't save your setups: \(error.localizedDescription)"
         }
@@ -252,6 +275,39 @@ final class AppModel {
     private static func cleanName(_ name: String, fallback: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    // MARK: Taps
+
+    /// Fetches the tap's contents from GitHub and keeps it in the sidebar.
+    /// Adding again refreshes the listing.
+    func addTap(_ raw: String) async {
+        do {
+            let name = try Ref.parseTap(raw)
+            let listing = try await tapFetch.fetch(name)
+            if let index = taps.firstIndex(where: { $0.name == name }) {
+                taps[index] = listing
+            } else {
+                taps.append(listing)
+            }
+            persistTaps()
+        } catch {
+            alertMessage = Self.describe(error)
+        }
+    }
+
+    func removeTap(_ name: String) {
+        taps.removeAll { $0.name == name }
+        persistTaps()
+    }
+
+    private func persistTaps() {
+        guard tapsLoadError == nil else { return }
+        do {
+            try tapsFile.save(taps)
+        } catch {
+            alertMessage = "Couldn't save your taps: \(error.localizedDescription)"
+        }
     }
 
     // MARK: Brewfiles
@@ -318,6 +374,9 @@ final class AppModel {
         case ToolError.launchFailed(let command, let reason): "\(command): \(reason)"
         case ToolError.missing(let tool): "\(tool) is not installed"
         case FetchError.http(let url, let status): "\(url.host() ?? "Server") returned \(status)"
+        case RefError.invalid(let raw): "\"\(raw)\" isn't a valid name. Taps look like owner/repo."
+        case TapError.notFound(let tap): "\(tap) has no Formula or Casks folder on GitHub. Check the name, or that it's a public repository."
+        case TapError.rateLimited: "GitHub's limit for anonymous requests was reached. Try again in an hour."
         case SettingsError.notHomebrew(let path): "\(path) doesn't look like Homebrew's brew command."
         case FetchError.noInstallerPackage: "The latest Homebrew release has no installer package."
         default: error.localizedDescription

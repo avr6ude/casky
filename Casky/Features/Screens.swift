@@ -115,6 +115,23 @@ struct SetupView: View {
     }
 }
 
+struct TapView: View {
+    @Environment(AppModel.self) private var model
+    let tap: TapListing
+
+    var body: some View {
+        CollectionView(
+            symbol: "shippingbox",
+            title: tap.name,
+            subtitle: "\(tap.formulae.count) command-line tools, \(tap.casks.count) apps · \(tap.repositoryURL.host() ?? "")\(tap.repositoryURL.path())",
+            entries: tap.items.map(model.displayEntry(for:))
+        ) {
+            Button("Refresh") { Task { await model.addTap(tap.name) } }
+        }
+        .navigationTitle(tap.name)
+    }
+}
+
 /// Header with a Select All toggle above a list of entries; shared by kits
 /// and saved setups.
 struct CollectionView<Actions: View>: View {

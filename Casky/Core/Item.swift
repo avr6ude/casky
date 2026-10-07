@@ -89,13 +89,29 @@ struct Ref: Hashable, Sendable {
         case 1:
             self.init(tap: nil, name: segments[0])
         case 3:
-            let repo = segments[1].hasPrefix("homebrew-") ? String(segments[1].dropFirst(9)) : segments[1]
-            guard Self.isValidSegment(repo) else { throw .invalid(raw) }
-            let tap = "\(segments[0])/\(repo)"
+            guard let tap = Self.tapName(owner: segments[0], repo: segments[1]) else { throw .invalid(raw) }
             self.init(tap: Self.builtinTaps.contains(tap) ? nil : tap, name: segments[2])
         default:
             throw .invalid(raw)
         }
+    }
+
+    /// Parses a third-party tap, `owner/repo` or `owner/homebrew-repo`, into
+    /// the normalized name Homebrew uses. The built-in taps are rejected:
+    /// their contents are already the catalog.
+    static func parseTap(_ raw: String) throws(RefError) -> String {
+        let segments = raw.trimmingCharacters(in: .whitespaces).lowercased()
+            .split(separator: "/", omittingEmptySubsequences: false)
+            .map(String.init)
+        guard segments.count == 2, segments.allSatisfy(isValidSegment),
+              let tap = tapName(owner: segments[0], repo: segments[1]),
+              !builtinTaps.contains(tap) else { throw .invalid(raw) }
+        return tap
+    }
+
+    private static func tapName(owner: String, repo: String) -> String? {
+        let repo = repo.hasPrefix("homebrew-") ? String(repo.dropFirst(9)) : repo
+        return isValidSegment(repo) ? "\(owner)/\(repo)" : nil
     }
 
     private init(tap: String?, name: String) {

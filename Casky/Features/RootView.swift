@@ -7,6 +7,7 @@ enum Destination: Hashable {
     case browse(Item.Kind)
     case kit(String)
     case setup(UUID)
+    case tap(String)
 }
 
 struct RootView: View {
@@ -59,6 +60,12 @@ struct RootView: View {
             } else {
                 ContentUnavailableView("This setup was deleted", systemImage: "square.stack")
             }
+        case .tap(let name):
+            if let tap = model.taps.first(where: { $0.name == name }) {
+                TapView(tap: tap).id(name)
+            } else {
+                ContentUnavailableView("This tap was removed", systemImage: "shippingbox")
+            }
         }
     }
 }
@@ -100,6 +107,25 @@ private struct Sidebar: View {
                 .foregroundStyle(.secondary)
             }
 
+            Section("Taps") {
+                ForEach(model.taps) { tap in
+                    Label(tap.name, systemImage: "shippingbox")
+                        .tag(Destination.tap(tap.name))
+                        .contextMenu {
+                            Button("Refresh") { Task { await model.addTap(tap.name) } }
+                            Divider()
+                            Button("Remove Tap", role: .destructive) { model.removeTap(tap.name) }
+                        }
+                }
+                Button {
+                    model.namePrompt = .addTap
+                } label: {
+                    Label("Add Tap…", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+            }
+
             Section("Kits") {
                 ForEach(model.kits) { kit in
                     Label(kit.title, systemImage: kit.symbol).tag(Destination.kit(kit.slug))
@@ -132,6 +158,10 @@ private struct StatusFooter: View {
                 }
                 .help(error)
             }
+            if let error = model.tapsLoadError {
+                Label("Taps couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
+                    .help(error)
+            }
             if let error = model.setupsLoadError {
                 Label("Saved setups couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
                     .help(error)
@@ -159,18 +189,30 @@ private struct Prompts: ViewModifier {
         @Bindable var model = model
         content
             .alert(promptTitle, isPresented: isPresented($model.namePrompt), presenting: model.namePrompt) { prompt in
-                TextField("Name", text: $name)
-                Button("Save") {
+                if case .addTap = prompt {
+                    TextField("owner/repo", text: $name)
+                } else {
+                    TextField("Name", text: $name)
+                }
+                Button(prompt.isAddTap ? "Add" : "Save") {
                     switch prompt {
                     case .newSetup(let items, _): model.saveSetup(named: name, items: items)
                     case .rename(let setup): model.renameSetup(setup.id, to: name)
+                    case .addTap:
+                        let tap = name
+                        Task { await model.addTap(tap) }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
                 Button("Cancel", role: .cancel) {}
             } message: { prompt in
-                if case .newSetup(let items, _) = prompt {
+                switch prompt {
+                case .newSetup(let items, _):
                     Text("^[\(items.count) item](inflect: true) will be saved on this Mac.")
+                case .addTap:
+                    Text("casky lists the tap's apps and tools from GitHub. Installing one adds the tap to Homebrew.")
+                case .rename:
+                    EmptyView()
                 }
             }
             .onChange(of: model.namePrompt == nil) {
@@ -178,6 +220,7 @@ private struct Prompts: ViewModifier {
                 switch model.namePrompt {
                 case .newSetup(_, let suggestedName): name = suggestedName
                 case .rename(let setup): name = setup.name
+                case .addTap: name = ""
                 case nil: break
                 }
             }
@@ -194,7 +237,11 @@ private struct Prompts: ViewModifier {
     }
 
     private var promptTitle: String {
-        if case .rename = model.namePrompt { "Rename Setup" } else { "Save Setup" }
+        switch model.namePrompt {
+        case .rename: "Rename Setup"
+        case .addTap: "Add Tap"
+        default: "Save Setup"
+        }
     }
 
     private func isPresented<Value>(_ binding: Binding<Value?>) -> Binding<Bool> {
@@ -214,4 +261,8 @@ private struct Prompts: ViewModifier {
         }
         return lines.joined(separator: "\n")
     }
+}
+
+private extension AppModel.NamePrompt {
+    var isAddTap: Bool { if case .addTap = self { true } else { false } }
 }

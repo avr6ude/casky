@@ -9,7 +9,7 @@ import Testing
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
         let kit = Kit(slug: "k", symbol: "star", title: "K", summary: "", items: [.cask(try! Ref(parsing: "a")), .mas(id: 1, name: "One")])
-        return AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [kit])
+        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [kit])
     }
 
     @Test func toggleKeepsSelectionOrderAndMembership() throws {
@@ -43,7 +43,7 @@ import Testing
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [FailingProtocol.self]
         fetch.session = URLSession(configuration: config)
-        let model = AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [])
+        let model = AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [])
         await model.start()
         guard case .failed = model.catalogState else { Issue.record("expected failed state"); return }
     }
@@ -56,7 +56,7 @@ import Testing
     private func model() -> AppModel {
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
-        return AppModel(fetch: fetch, store: SetupStore(file: file), defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [])
+        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [])
     }
 
     @Test func savedSetupsSurviveRelaunch() throws {

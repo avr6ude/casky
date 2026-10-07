@@ -1,20 +1,20 @@
 import Foundation
 
-/// Saved setups in `~/Library/Application Support/casky/setups.json`.
-struct SetupStore: Sendable {
-    var file: URL = URL.applicationSupportDirectory.appending(path: "casky/setups.json")
+/// One JSON file of user data in `~/Library/Application Support/casky/`.
+struct JSONFile<Value: Codable>: Sendable {
+    let file: URL
 
-    /// No file yet means no setups. An unreadable file is an error: it holds
-    /// the user's data, so the caller must not overwrite it.
-    func load() throws -> [SavedSetup] {
-        guard FileManager.default.fileExists(atPath: file.path) else { return [] }
-        return try JSONDecoder().decode([SavedSetup].self, from: Data(contentsOf: file))
+    /// No file yet means `empty`. An unreadable file is an error: it holds the
+    /// user's data, so the caller must not overwrite it.
+    func load(empty: Value) throws -> Value {
+        guard FileManager.default.fileExists(atPath: file.path) else { return empty }
+        return try JSONDecoder().decode(Value.self, from: Data(contentsOf: file))
     }
 
-    func save(_ setups: [SavedSetup]) throws {
+    func save(_ value: Value) throws {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(setups).write(to: file, options: .atomic)
+        try encoder.encode(value).write(to: file, options: .atomic)
     }
 }

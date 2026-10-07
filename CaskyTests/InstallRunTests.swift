@@ -36,7 +36,7 @@ import Testing
     private func model(_ brew: Homebrew) -> AppModel {
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
-        return AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in brew }, kits: [])
+        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in brew }, kits: [])
     }
 
     @Test func installsInOrderRecordsFailuresAndSkipsInstalled() async throws {
@@ -67,7 +67,7 @@ import Testing
         let defaults = UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
-        let model = AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), defaults: defaults, locateHomebrew: { _ in nil }, kits: [])
+        let model = AppModel(fetch: fetch, dataDirectory: directory, defaults: defaults, locateHomebrew: { _ in nil }, kits: [])
 
         await #expect(throws: AppModel.SettingsError.notHomebrew("/bin/echo")) {
             try await model.setHomebrewPath(URL(fileURLWithPath: "/bin/echo"))
