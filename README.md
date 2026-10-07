@@ -43,9 +43,9 @@ Repository scripts are never run. Source symlinks, Git submodules and destinatio
 
 ## Mac Preferences
 
-Open a saved setup and select **Mac Preferences**. Dock, Finder, keyboard and screenshot settings are listed like System Settings; pick a value from each pop-up (Dock size and key repeat also take a Custom number), or leave it at **Don't Change** to keep it out of the setup. **System Default** removes the explicit override. **Add Custom Setting** takes any domain and key with a Boolean, integer, decimal or text value. Changes save as you make them. **Use This Mac's Values** reads the chosen settings from this Mac; **Apply to This Mac** shows the current and new values before changing anything.
+Open a saved setup and select **Mac Preferences**. Dock, Finder, keyboard and screenshot settings are listed like System Settings; pick a value from each pop-up (Dock size and key repeat also take a Custom number), or leave it at **Don't Change** to keep it out of the setup. **System Default** removes the explicit override. **Add Custom Setting** takes any domain and key with a Boolean, integer, decimal or text value. Changes save as you make them. **Use This Mac's Values** reads the chosen settings from this Mac; **Apply to This Mac** backs up the current values and applies in one step; the bar then offers **Undo** and, when needed, a Dock or Finder restart.
 
-**Apply** saves the original values under `~/Library/Application Support/casky/preference-backups/` before writing current-user preferences. The result offers **Undo** and an explicit Dock and Finder restart when relevant. Other apps may need reopening or signing out. **More → Restore from Backup** previews a previous backup; values changed afterward by another app are protected. Capture only reads explicit values for the current user across all hosts; per-host and system-wide settings are outside this feature.
+**Apply** saves the original values under `~/Library/Application Support/casky/preference-backups/` before writing current-user preferences. Other apps may need reopening or signing out. **More → Restore from Backup** puts a previous backup back; values changed afterward by another app are protected. Capture only reads explicit values for the current user across all hosts; per-host and system-wide settings are outside this feature.
 
 ## License
 

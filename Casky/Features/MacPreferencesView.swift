@@ -4,7 +4,8 @@ import SwiftUI
 /// The Mac settings a setup carries, laid out like System Settings: every
 /// well-known setting with a pop-up of its values, where Don't Change leaves
 /// it out of the setup. Changes save as they're made; nothing touches this
-/// Mac until Apply.
+/// Mac until Apply, which writes straight away after backing up the
+/// current values, and offers Undo.
 struct MacPreferencesView: View {
     @Environment(AppModel.self) private var model
     let setup: SavedSetup
@@ -12,8 +13,17 @@ struct MacPreferencesView: View {
     @State private var isBusy = false
     @State private var editing: CustomEdit?
     @State private var error: String?
-    @State private var preview: MacPreferences.Plan?
-    @State private var isBackupRestore = false
+    /// What the last Apply, Undo or Restore did, shown in the bar.
+    @State private var outcome: Outcome?
+
+    private struct Outcome {
+        let message: String
+        /// Set while the change can still be undone.
+        var applied: MacPreferences.Applied?
+        /// Set until Dock and Finder are restarted for this change.
+        var restartPlan: MacPreferences.Plan?
+        var restart: [String] { restartPlan.map(MacPreferences.appsToRestart) ?? [] }
+    }
 
     init(setup: SavedSetup) {
         self.setup = setup
@@ -73,7 +83,10 @@ struct MacPreferencesView: View {
         .formStyle(.grouped)
         .safeAreaInset(edge: .bottom, spacing: 0) { bar }
         .disabled(isBusy)
-        .onChange(of: preferences) { save() }
+        .onChange(of: preferences) {
+            save()
+            outcome = nil
+        }
         .sheet(item: $editing) { edit in
             CustomSettingSheet(draft: edit.draft, original: edit.original, taken: Set(preferences.map(\.id))) { preference in
                 if let original = edit.original, let index = preferences.firstIndex(where: { $0.id == original }) {
@@ -83,21 +96,25 @@ struct MacPreferencesView: View {
                 }
             }
         }
-        .sheet(isPresented: Binding(get: { preview != nil }, set: { if !$0 { preview = nil } })) {
-            if let preview { MacPreferencesPreviewView(plan: preview, backups: backups, isBackupRestore: isBackupRestore) }
-        }
     }
 
     private var bar: some View {
         HStack(spacing: 12) {
-            Group {
-                if preferences.isEmpty {
-                    Text("No settings chosen")
-                } else {
-                    Text("^[\(preferences.count) setting](inflect: true) in this setup")
+            if let outcome {
+                Label(outcome.message, systemImage: "checkmark.circle.fill")
+                    .symbolRenderingMode(.multicolor)
+                if let applied = outcome.applied {
+                    Button("Undo") { Task { await undo(applied) } }
                 }
+                if !outcome.restart.isEmpty {
+                    Button("Restart \(outcome.restart.formatted(.list(type: .and)))") { Task { await restart() } }
+                        .help("Changes to these show after they restart")
+                }
+            } else if preferences.isEmpty {
+                Text("No settings chosen").foregroundStyle(.secondary)
+            } else {
+                Text("^[\(preferences.count) setting](inflect: true) in this setup").foregroundStyle(.secondary)
             }
-            .foregroundStyle(.secondary)
             if isBusy { ProgressView().controlSize(.small) }
             Spacer()
             Menu {
@@ -112,7 +129,7 @@ struct MacPreferencesView: View {
             Button("Use This Mac's Values") { Task { await capture() } }
                 .disabled(preferences.isEmpty)
                 .help("Set each chosen setting to what this Mac uses now")
-            Button("Apply to This Mac…") { Task { await makePreview() } }
+            Button("Apply to This Mac") { Task { await apply() } }
                 .buttonStyle(.borderedProminent)
                 .disabled(preferences.isEmpty || model.isInstalling)
         }
@@ -172,35 +189,68 @@ struct MacPreferencesView: View {
         } catch { self.error = error.localizedDescription }
     }
 
-    private func makePreview() async {
-        isBusy = true
-        defer { isBusy = false }
-        let current = preferences
-        do {
-            let plan = try await Task.detached { try MacPreferences.preview(current) }.value
-            isBackupRestore = false
-            preview = plan
-        } catch { self.error = error.localizedDescription }
+    /// Backs up this Mac's values, then writes the chosen ones.
+    private func apply() async {
+        await run { [preferences, backups] in
+            let plan = try MacPreferences.preview(preferences)
+            guard plan.changedCount > 0 else { return nil }
+            return try MacPreferences.apply(plan, backups: backups)
+        } done: { applied in
+            applied.map { "Applied \(Self.count($0.plan))" } ?? "This Mac already matches"
+        }
+    }
+
+    private func undo(_ applied: MacPreferences.Applied) async {
+        await run { [backups] in
+            try MacPreferences.apply(MacPreferences.restorePreview(applied.plan), backups: backups)
+        } done: { _ in "Undone" }
+        if error == nil { outcome?.applied = nil }
     }
 
     private func chooseBackup() {
         let panel = NSOpenPanel()
         panel.title = "Restore Mac Preferences Backup"
+        panel.prompt = "Restore"
         panel.directoryURL = backups
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
-            isBusy = true
-            defer { isBusy = false }
-            do {
-                let plan = try await Task.detached {
-                    let backup = try JSONDecoder().decode(MacPreferences.Plan.self, from: Data(contentsOf: url))
-                    return try MacPreferences.restorePreview(backup)
-                }.value
-                isBackupRestore = true
-                preview = plan
-            } catch { self.error = error.localizedDescription }
+            await run { [backups] in
+                let backup = try JSONDecoder().decode(MacPreferences.Plan.self, from: Data(contentsOf: url))
+                let plan = try MacPreferences.restorePreview(backup)
+                guard plan.changedCount > 0 else { return nil }
+                return try MacPreferences.apply(plan, backups: backups)
+            } done: { applied in
+                applied.map { "Restored \(Self.count($0.plan))" } ?? "This Mac already matches the backup"
+            }
         }
+    }
+
+    private func restart() async {
+        guard let plan = outcome?.restartPlan else { return }
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try await MacPreferences.restartApps(for: plan)
+            outcome?.restartPlan = nil
+        } catch { self.error = AppModel.describe(error) }
+    }
+
+    /// Runs a write off the main thread and reports it in the bar.
+    private func run(_ work: @escaping @Sendable () throws -> MacPreferences.Applied?, done: (MacPreferences.Applied?) -> String) async {
+        isBusy = true
+        error = nil
+        defer { isBusy = false }
+        do {
+            let applied = try await Task.detached(operation: work).value
+            outcome = Outcome(message: done(applied), applied: applied, restartPlan: applied?.plan)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private static func count(_ plan: MacPreferences.Plan) -> String {
+        plan.changedCount == 1 ? "1 change" : "\(plan.changedCount) changes"
     }
 }
 
@@ -382,134 +432,5 @@ private struct CustomSettingSheet: View {
             save(preference)
             dismiss()
         } catch { self.error = error.localizedDescription }
-    }
-}
-
-// MARK: - Review and apply
-
-private struct MacPreferencesPreviewView: View {
-    @Environment(\.dismiss) private var dismiss
-    let plan: MacPreferences.Plan
-    let backups: URL
-    let isBackupRestore: Bool
-    @State private var isBusy = false
-    @State private var applied: MacPreferences.Applied?
-    @State private var isUndone = false
-    @State private var error: String?
-    @State private var note: String?
-
-    private var hasRestartableApps: Bool {
-        plan.changes.contains { $0.isChanged && ($0.preference.domain == "com.apple.dock" || $0.preference.domain == "com.apple.finder" || ($0.preference.domain == "NSGlobalDomain" && $0.preference.key == "AppleShowAllExtensions")) }
-    }
-
-    private var title: String {
-        if isUndone { return "Settings Restored" }
-        if applied != nil { return "Settings Applied" }
-        return isBackupRestore ? "Restore from Backup?" : "Apply to This Mac?"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.title2.bold())
-                Text(isBackupRestore
-                     ? "Puts back the values from before that change. Anything changed since in another app is left alone."
-                     : "This Mac's current values are backed up first, so you can undo.")
-                    .foregroundStyle(.secondary)
-            }
-            .padding([.horizontal, .top], 24)
-            Form {
-                Section {
-                    ForEach(plan.changes) { change in
-                        LabeledContent {
-                            if change.isChanged {
-                                HStack(spacing: 6) {
-                                    Text(change.preference.describe(change.before)).foregroundStyle(.secondary)
-                                    Image(systemName: "arrow.right").font(.caption).foregroundStyle(.tertiary)
-                                    Text(change.preference.describe(change.after))
-                                }
-                            } else {
-                                Text("Already \(change.preference.describe(change.after))").foregroundStyle(.secondary)
-                            }
-                        } label: {
-                            Text(change.preference.title)
-                            Text(change.preference.subtitle)
-                        }
-                    }
-                }
-            }
-            .formStyle(.grouped)
-            footer
-        }
-        .frame(width: 600, height: min(560, 230 + CGFloat(plan.changes.count) * 46))
-        .interactiveDismissDisabled(isBusy)
-    }
-
-    private var footer: some View {
-        HStack(spacing: 12) {
-            if let error {
-                Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red).textSelection(.enabled)
-            } else if let note {
-                Label(note, systemImage: "checkmark.circle.fill").foregroundStyle(.secondary)
-            } else if hasRestartableApps, applied == nil {
-                Text("Dock and Finder can restart afterwards to show the change.").font(.callout).foregroundStyle(.secondary)
-            }
-            Spacer()
-            if isBusy {
-                ProgressView().controlSize(.small)
-            } else if applied != nil {
-                if hasRestartableApps { Button("Restart Dock and Finder") { Task { await restart() } } }
-                if !isUndone { Button("Undo") { Task { await undo() } } }
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
-            } else if error != nil {
-                Button("Close") { dismiss() }.keyboardShortcut(.defaultAction)
-            } else {
-                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
-                Button { Task { await apply() } } label: {
-                    if plan.changedCount == 0 { Text("Nothing to Change") } else { Text("Apply ^[\(plan.changedCount) Change](inflect: true)") }
-                }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(plan.changedCount == 0)
-                    .keyboardShortcut(.defaultAction)
-            }
-        }
-        .controlSize(.large)
-        .padding(20)
-    }
-
-    private func apply() async {
-        isBusy = true
-        defer { isBusy = false }
-        let plan = plan, backups = backups
-        do {
-            applied = try await Task.detached { try MacPreferences.apply(plan, backups: backups) }.value
-            note = "Applied \(plan.changedCount) \(plan.changedCount == 1 ? "change" : "changes")."
-        } catch { self.error = error.localizedDescription }
-    }
-
-    private func undo() async {
-        guard let applied else { return }
-        isBusy = true
-        error = nil
-        defer { isBusy = false }
-        let backups = backups
-        do {
-            _ = try await Task.detached {
-                let reverse = try MacPreferences.restorePreview(applied.plan)
-                return try MacPreferences.apply(reverse, backups: backups)
-            }.value
-            isUndone = true
-            note = "Previous values are back."
-        } catch { self.error = error.localizedDescription }
-    }
-
-    private func restart() async {
-        isBusy = true
-        error = nil
-        defer { isBusy = false }
-        do {
-            try await MacPreferences.restartApps(for: plan)
-            note = "Dock and Finder restarted."
-        } catch { self.error = AppModel.describe(error) }
     }
 }

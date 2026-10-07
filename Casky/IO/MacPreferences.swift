@@ -118,12 +118,18 @@ enum MacPreferences {
         domain == "NSGlobalDomain" ? kCFPreferencesAnyApplication : domain as CFString
     }
 
-    static func restartApps(for plan: Plan) async throws {
+    /// Dock and Finder read their settings at launch, so changes to them
+    /// show only after a restart.
+    static func appsToRestart(for plan: Plan) -> [String] {
         let domains = Set(plan.changes.filter(\.isChanged).map(\.preference.domain))
         var apps: [String] = []
         if domains.contains("com.apple.dock") { apps.append("Dock") }
         if domains.contains("com.apple.finder") || plan.changes.contains(where: { $0.isChanged && $0.preference.key == "AppleShowAllExtensions" && $0.preference.domain == "NSGlobalDomain" }) { apps.append("Finder") }
-        guard !apps.isEmpty else { return }
+        return apps
+    }
+
+    static func restartApps(for plan: Plan) async throws {
+        let apps = appsToRestart(for: plan)
         // A process that wasn't running needs no restart; launch errors still surface.
         for app in apps {
             do { _ = try await ToolRunner.run(URL(fileURLWithPath: "/usr/bin/killall"), arguments: [app], environment: ["PATH": "/usr/bin:/bin"]) }
