@@ -6,6 +6,7 @@ A native macOS app for setting up a Mac: pick a kit or search, then install apps
 - Dotfiles in saved setups: load a Git repository, choose files or folders, and preview a link or copy restore with backups
 - Mac preferences in saved setups: capture or edit Dock, Finder, keyboard, screenshot and custom settings, then preview and apply with backups
 - Brewfile export and import (import reads plain entries only and never executes the file)
+- Ansible export: a saved setup becomes a playbook that installs its taps, tools, apps and App Store apps, restores its dotfiles and sets its Mac preferences (`ansible-galaxy collection install community.general`, then `ansible-playbook <file>`)
 - Shows what's already installed; installs one item at a time with live output, Stop and Retry
 - Asks for your Mac password in a native dialog only when an install needs it
 - Optional daily app updates (Settings), run by a launchd agent you can also turn off in Login Items

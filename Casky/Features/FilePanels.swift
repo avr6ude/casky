@@ -16,8 +16,13 @@ enum FilePanels {
 
     /// Returns an error message, or nil when saved or cancelled.
     static func saveBrewfile(_ text: String, suggestedName: String = "Brewfile") -> String? {
+        save(text, title: "Export Brewfile", suggestedName: suggestedName)
+    }
+
+    /// Returns an error message, or nil when saved or cancelled.
+    static func save(_ text: String, title: String, suggestedName: String) -> String? {
         let panel = NSSavePanel()
-        panel.title = "Export Brewfile"
+        panel.title = title
         panel.nameFieldStringValue = suggestedName
         panel.allowsOtherFileTypes = true
         panel.isExtensionHidden = false
@@ -38,5 +43,9 @@ extension AppModel {
 
     func exportBrewfile(_ items: [Item]) {
         alertMessage = FilePanels.saveBrewfile(brewfile(for: items))
+    }
+
+    func exportAnsible(_ setup: SavedSetup) {
+        alertMessage = FilePanels.save(AnsiblePlaybook.render(setup), title: "Export Ansible Playbook", suggestedName: AnsiblePlaybook.fileName(for: setup))
     }
 }

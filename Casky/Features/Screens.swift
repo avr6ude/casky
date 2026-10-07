@@ -34,6 +34,19 @@ struct SetupView: View {
             }
         }
         .navigationTitle(setup.name)
+        .toolbar {
+            Menu {
+                Button("Rename…") { model.namePrompt = .rename(setup) }
+                Divider()
+                Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
+                Button("Export Ansible Playbook…") { model.exportAnsible(setup) }
+                Divider()
+                Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
+            } label: {
+                Label("Setup", systemImage: "ellipsis.circle")
+            }
+            .help("Rename, export or delete this setup")
+        }
     }
 
     private var packages: some View {
@@ -42,20 +55,7 @@ struct SetupView: View {
             title: setup.name,
             subtitle: "Saved \(setup.createdAt.formatted(date: .abbreviated, time: .omitted))",
             entries: setup.items.map(model.displayEntry(for:))
-        ) {
-            Menu {
-                Button("Rename…") { model.namePrompt = .rename(setup) }
-                Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
-                Button("Configure Dotfiles…") { content = .dotfiles }
-                Button("Configure Mac Preferences…") { content = .preferences }
-                Divider()
-                Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
-            }
-            .menuIndicator(.hidden)
-            .fixedSize()
-        }
+        )
     }
 }
 
