@@ -16,7 +16,7 @@ echo "== $(date '+%Y-%m-%d %H:%M:%S')"
 
 brew=""
 # CASKY_BREW is for testing this script; launchd never sets it.
-for candidate in "${CASKY_BREW:-}" "$(defaults read app.avrdude.Casky homebrewPath 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew; do
+for candidate in "${CASKY_BREW:-}" "$(defaults read app.avrdude.casky homebrewPath 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew; do
   if [ -n "$candidate" ] && [ -x "$candidate" ]; then
     brew="$candidate"
     break
