@@ -53,13 +53,7 @@ private struct HistoryStepRow: View {
                 Text(detail).font(.callout).foregroundStyle(.secondary)
             }
             if case .failed(_, let output) = step.result, !output.isEmpty {
-                Text(output.joined(separator: "\n"))
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.fill.quaternary, in: .rect(cornerRadius: 6))
+                ConsoleView(lines: output, height: 140)
             }
         }
         .accessibilityElement(children: .combine)

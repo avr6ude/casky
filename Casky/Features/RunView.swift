@@ -91,7 +91,7 @@ private struct StepRow: View {
             .accessibilityElement(children: .combine)
 
             if isCurrent, !model.currentOutput.isEmpty {
-                OutputText(lines: model.currentOutput.suffix(12))
+                ConsoleView(lines: model.currentOutput, height: 200)
             }
             if case .failed(_, let output) = outcome {
                 if case .install(.mas(let id, _)) = step.action {
@@ -105,7 +105,7 @@ private struct StepRow: View {
                 }
                 if !output.isEmpty {
                     DisclosureGroup("Details") {
-                        OutputText(lines: output[...])
+                        ConsoleView(lines: output, height: 160)
                     }
                     .font(.callout)
                 }
@@ -148,16 +148,30 @@ private struct StepRow: View {
     }
 }
 
-private struct OutputText: View {
-    let lines: ArraySlice<String>
+/// Command output the way a terminal shows it: full-size monospaced text on
+/// a dark background, scrollable and selectable, following new lines.
+struct ConsoleView: View {
+    let lines: [String]
+    let height: CGFloat
 
     var body: some View {
-        Text(lines.joined(separator: "\n"))
-            .font(.caption.monospaced())
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(.fill.quaternary, in: .rect(cornerRadius: 6))
+        ScrollViewReader { proxy in
+            ScrollView {
+                Text(lines.joined(separator: "\n"))
+                    .font(.system(size: 12, design: .monospaced))
+                    .lineSpacing(2)
+                    .foregroundStyle(Color(white: 0.88))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                Color.clear.frame(height: 1).id("end")
+            }
+            .frame(height: height)
+            .background(Color(white: 0.08), in: .rect(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+            .environment(\.colorScheme, .dark)
+            .onAppear { proxy.scrollTo("end", anchor: .bottom) }
+            .onChange(of: lines.count) { proxy.scrollTo("end", anchor: .bottom) }
+        }
     }
 }
