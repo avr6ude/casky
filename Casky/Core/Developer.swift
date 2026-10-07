@@ -68,11 +68,52 @@ struct EditorExtension: Codable, Hashable, Sendable {
     }
 }
 
+/// Whether a Homebrew formula's background service runs.
+enum ServiceState: String, Codable, CaseIterable, Sendable {
+    /// `brew services start`: runs now and starts at login.
+    case atLogin
+    /// `brew services run`: runs now, not at login.
+    case running
+    /// `brew services stop`.
+    case stopped
+
+    var title: String {
+        switch self {
+        case .atLogin: "Run at Login"
+        case .running: "Run Now Only"
+        case .stopped: "Stopped"
+        }
+    }
+}
+
+struct ServicePolicy: Codable, Hashable, Sendable {
+    let formula: Ref
+    var state: ServiceState
+}
+
 /// What's on this Mac beyond Homebrew's own packages, read before
 /// planning a setup so only what's missing runs.
 struct DeveloperState: Sendable {
     /// Installed extension IDs, per editor whose command-line tool was found.
     var extensions: [Editor: Set<String>] = [:]
+    /// Formulae with a background service, by name, and whether it runs.
+    var services: [String: ServiceState] = [:]
+}
+
+extension DeveloperState {
+    /// `brew services info --all --json`: `registered` means its launch
+    /// agent is installed, so it starts at login.
+    static func decodeServices(_ data: Data) throws -> [String: ServiceState] {
+        struct Service: Decodable {
+            let name: String
+            let running: Bool?
+            let registered: Bool?
+        }
+        let services = try JSONDecoder().decode([Service].self, from: data)
+        return Dictionary(services.map { service in
+            (service.name.lowercased(), service.registered == true ? .atLogin : service.running == true ? .running : .stopped)
+        }, uniquingKeysWith: { first, _ in first })
+    }
 }
 
 enum DeveloperError: LocalizedError, Equatable {

@@ -55,6 +55,19 @@ enum AnsiblePlaybook {
                                               ["id": "[\(chosen.map { String($0.id) }.joined(separator: ", "))]", "state": state], become: state == "absent"))
         }
 
+        let services = setup.services ?? []
+        for (state, module) in [(ServiceState.atLogin, "present"), (.stopped, "absent")] {
+            let names = services.filter { $0.state == state }.map(\.formula.fullName)
+            guard !names.isEmpty else { continue }
+            tasks.append(task("\(state == .atLogin ? "Start" : "Stop") Homebrew services", "community.general.homebrew_services",
+                              ["name": "\"{{ item }}\"", "state": module], loop: list(names)))
+        }
+        let runOnly = services.filter { $0.state == .running }.map(\.formula.fullName)
+        if !runOnly.isEmpty {
+            tasks.append(task("Run Homebrew services now, not at login", "ansible.builtin.command", ["argv": "[brew, services, run, \"{{ item }}\"]"],
+                              changedWhen: quoted("'already started' not in result.stdout"), register: "result", loop: list(runOnly)))
+        }
+
         for editor in Editor.allCases {
             let ids = (setup.extensions ?? []).filter { $0.editor == editor }.map(\.identifier)
             guard !ids.isEmpty else { continue }

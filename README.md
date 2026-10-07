@@ -5,6 +5,7 @@ A native macOS app for setting up a Mac: pick a kit or search, then install apps
 - Kits, saved setups, and "Save This Mac" snapshots
 - Package rules in saved setups: install, keep updated, hold at a version (`brew pin` for tools; casky leaves held apps out of Update All) or remove, and pick which version of a versioned tool (`node`, `node@22`)
 - Editor setup: save VS Code and Cursor extensions with a setup (or take this Mac's), install them on Apply; settings, keybindings and snippets restore through Dotfiles, which suggests each editor's settings folder
+- Homebrew services in setups: run at login, run now only, or stopped; Apply Setup and the Ansible export bring each service to that state
 - Apply Setup: one review, then one run that installs a setup's apps and tools, restores its dotfiles and applies its Mac preferences, with progress, Stop and Retry
 - Dotfiles in saved setups: load a Git repository, choose files or folders, and preview a link or copy restore with backups
 - Mac preferences in saved setups: capture or edit Dock, Finder, keyboard, screenshot and custom settings, then preview and apply with backups

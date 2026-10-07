@@ -109,8 +109,13 @@ private struct ApplySetupSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                let developerSteps = plan.steps.filter { if case .editorExtension = $0.action { true } else { false } }
-                if !developerSteps.isEmpty || setup.extensions?.isEmpty == false {
+                let developerSteps = plan.steps.filter {
+                    switch $0.action {
+                    case .service, .editorExtension: true
+                    default: false
+                    }
+                }
+                if !developerSteps.isEmpty || setup.extensions?.isEmpty == false || setup.services?.isEmpty == false {
                     Section("Developer") {
                         ForEach(developerSteps, id: \.self) { step in
                             Text(model.title(for: step.action))
@@ -168,7 +173,7 @@ private struct ApplySetupSheet: View {
         case .update, .replace: "Update"
         case .remove: "Remove"
         case .hold: "Hold at its version"
-        case .tap, .editorExtension, .dotfiles, .preferences: ""
+        case .tap, .service, .editorExtension, .dotfiles, .preferences: ""
         }
     }
 

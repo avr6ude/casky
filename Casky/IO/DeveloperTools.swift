@@ -32,9 +32,14 @@ enum DeveloperTools {
         return try await ToolRunner.stream(cli, arguments: ["--install-extension", editorExtension.identifier], environment: environment, onLine: onLine)
     }
 
+    static func services(_ homebrew: Homebrew) async throws -> [String: ServiceState] {
+        try DeveloperState.decodeServices(try await homebrew.run(["services", "info", "--all", "--json"]))
+    }
+
     /// Everything planning needs; tools that aren't there are left out.
-    static func state() async -> DeveloperState {
+    static func state(homebrew: Homebrew?) async -> DeveloperState {
         var state = DeveloperState()
+        if let homebrew { state.services = (try? await services(homebrew)) ?? [:] }
         for editor in Editor.allCases {
             if let installed = try? await installedExtensions(editor) {
                 state.extensions[editor] = Set(installed.map(\.identifier))

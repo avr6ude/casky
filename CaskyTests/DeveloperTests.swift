@@ -34,3 +34,20 @@ import Testing
         #expect(playbook.contains(#"loop: [!unsafe "ms-python.python"]"#))
     }
 }
+
+@Suite struct ServiceTests {
+    @Test func decodesWhetherServicesRunAndStartAtLogin() throws {
+        let json = #"[{"name":"postgresql@16","running":true,"registered":true},{"name":"redis","running":true,"registered":false},{"name":"kubo","running":false,"registered":false}]"#
+        #expect(try DeveloperState.decodeServices(Data(json.utf8)) == ["postgresql@16": .atLogin, "redis": .running, "kubo": .stopped])
+    }
+
+    @Test func plansServicesThatDifferForInstalledTools() throws {
+        let redis = try Ref(parsing: "redis"), kubo = try Ref(parsing: "kubo"), missing = try Ref(parsing: "mysql")
+        let setup = SavedSetup(id: UUID(), name: "Mac", items: [], createdAt: .now,
+                               services: [.init(formula: redis, state: .atLogin), .init(formula: kubo, state: .stopped), .init(formula: missing, state: .atLogin)])
+        let installed = InstalledState(formulae: ["redis", "kubo"])
+        let plan = InstallPlan(setup: setup, packages: InstallPlan(selection: [], installed: installed), installed: installed,
+                               developer: DeveloperState(services: ["redis": .running, "kubo": .stopped]))
+        #expect(plan.steps.map(\.action) == [.service(redis, .atLogin)])
+    }
+}

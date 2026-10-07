@@ -31,6 +31,7 @@ extension AppModel {
         case .update(let item), .replace(let item): "Update \(displayEntry(for: item).title)"
         case .remove(let item): "Remove \(displayEntry(for: item).title)"
         case .hold(let item): "Hold \(displayEntry(for: item).title) at its version"
+        case .service(let ref, let state): "\(ref.name) service: \(state.title.lowercased())"
         case .editorExtension(let editorExtension): "\(editorExtension.editor.title) extension \(editorExtension.identifier)"
         case .dotfiles(_, let configuration): configuration.files.count == 1 ? "Restore 1 dotfile" : "Restore \(configuration.files.count) dotfiles"
         case .preferences(_, let preferences): preferences.count == 1 ? "Apply 1 Mac setting" : "Apply \(preferences.count) Mac settings"
@@ -121,7 +122,7 @@ extension AppModel {
     }
 
     func refreshDeveloperState() async {
-        developerState = await DeveloperTools.state()
+        developerState = await DeveloperTools.state(homebrew: homebrew)
     }
 
     func stopAfterCurrentStep() {

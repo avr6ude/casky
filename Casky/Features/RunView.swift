@@ -133,6 +133,7 @@ private struct StepRow: View {
         case .remove: ("Removed", "Removing…")
         case .hold: ("Held", "Holding…")
         case .editorExtension: ("Installed", "Installing…")
+        case .service: ("Done", "Applying…")
         case .dotfiles, .preferences: ("Done", "Applying…")
         }
     }

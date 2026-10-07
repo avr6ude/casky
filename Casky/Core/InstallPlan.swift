@@ -14,6 +14,7 @@ struct InstallStep: Hashable, Sendable {
         /// Keep at its current version: `brew pin` for formulae; for apps,
         /// casky remembers and leaves them out of Update All.
         case hold(Item)
+        case service(Ref, ServiceState)
         case editorExtension(EditorExtension)
         /// Restore a setup's dotfiles from its repository.
         case dotfiles(setup: UUID, DotfilesConfiguration)
@@ -28,6 +29,7 @@ struct InstallStep: Hashable, Sendable {
             case nil:
                 switch self {
                 case .tap(let tap): tap
+                case .service(let ref, _): ref.name
                 case .editorExtension(let editorExtension): editorExtension.identifier
                 case .dotfiles: "Dotfiles"
                 case .preferences: "Mac preferences"
@@ -39,13 +41,13 @@ struct InstallStep: Hashable, Sendable {
         var isUpdate: Bool {
             switch self {
             case .update, .replace: true
-            case .tap, .install, .remove, .hold, .editorExtension, .dotfiles, .preferences: false
+            case .tap, .install, .remove, .hold, .service, .editorExtension, .dotfiles, .preferences: false
             }
         }
 
         var item: Item? {
             switch self {
-            case .tap, .editorExtension, .dotfiles, .preferences: nil
+            case .tap, .service, .editorExtension, .dotfiles, .preferences: nil
             case .install(let item), .update(let item), .replace(let item), .remove(let item), .hold(let item): item
             }
         }
@@ -100,6 +102,13 @@ struct InstallPlan: Sendable {
             case .remove, nil:
                 continue
             }
+        }
+        // Services of tools that are installed or about to be.
+        for service in setup.services ?? [] where developer.services[service.formula.name] != service.state {
+            let formula = Item.formula(service.formula)
+            let willInstall = installing.contains(.install(formula))
+            guard willInstall || installed.contains(formula) else { continue }
+            steps.append(InstallStep(action: .service(service.formula, service.state), prerequisites: willInstall ? [.install(formula)] : []))
         }
         for editorExtension in setup.extensions ?? [] where developer.extensions[editorExtension.editor]?.contains(editorExtension.identifier) != true {
             let editor = InstallStep.Action.install(editorExtension.editor.cask)

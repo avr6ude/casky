@@ -12,6 +12,7 @@ struct SavedSetup: Codable, Hashable, Identifiable, Sendable {
     /// installed and otherwise left alone.
     var policies: [PackagePolicy]? = nil
     var extensions: [EditorExtension]? = nil
+    var services: [ServicePolicy]? = nil
 
     func rule(for item: Item) -> PackagePolicy.Rule? {
         policies?.first { $0.item == item }?.rule

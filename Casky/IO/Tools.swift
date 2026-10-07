@@ -97,6 +97,15 @@ struct Homebrew: Sendable {
             return try await runMasAsRoot(["uninstall", String(id)], environment: environment, onLine: onLine)
         case .hold(.formula(let ref)):
             return try await ToolRunner.stream(executable, arguments: ["pin", ref.fullName], environment: environment, onLine: onLine)
+        case .service(let ref, .atLogin):
+            return try await ToolRunner.stream(executable, arguments: ["services", "start", ref.fullName], environment: environment, onLine: onLine)
+        case .service(let ref, .running):
+            // `run` leaves a service that starts at login as it is; stop it
+            // first so it runs now only. Stopping one that isn't running is fine.
+            _ = try await ToolRunner.stream(executable, arguments: ["services", "stop", ref.fullName], environment: environment, onLine: onLine)
+            return try await ToolRunner.stream(executable, arguments: ["services", "run", ref.fullName], environment: environment, onLine: onLine)
+        case .service(let ref, .stopped):
+            return try await ToolRunner.stream(executable, arguments: ["services", "stop", ref.fullName], environment: environment, onLine: onLine)
         case .hold(.cask), .hold(.mas), .editorExtension, .dotfiles, .preferences:
             preconditionFailure("\(action.name) isn't a Homebrew step")
         }

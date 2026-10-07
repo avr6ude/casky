@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Developer tools a setup carries beyond Homebrew packages: editor
-/// extensions (settings restore with dotfiles).
+/// Developer tools a setup carries beyond Homebrew packages: background
+/// services and editor extensions (settings restore with dotfiles).
 struct DeveloperView: View {
     @Environment(AppModel.self) private var model
     let setup: SavedSetup
@@ -19,12 +19,81 @@ struct DeveloperView: View {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red).textSelection(.enabled)
                 }
             }
+            servicesSection
             ForEach(Editor.allCases, id: \.self) { editor in
                 editorSection(editor)
             }
         }
         .formStyle(.grouped)
         .task { await model.refreshDeveloperState() }
+    }
+
+    // MARK: Services
+
+    /// This Mac's services plus the ones the setup names.
+    private var serviceNames: [String] {
+        (Array(model.developerState.services.keys) + (setup.services ?? []).map(\.formula.name)).uniqued().sorted()
+    }
+
+    private var servicesSection: some View {
+        let names = serviceNames
+        let candidates = setup.installs.compactMap { if case .formula(let ref) = $0, !names.contains(ref.name) { ref } else { nil } }
+        return Section {
+            ForEach(names, id: \.self) { name in
+                Picker(selection: serviceBinding(name)) {
+                    Text("Don't Change").tag(ServiceState?.none)
+                    Divider()
+                    ForEach(ServiceState.allCases, id: \.self) { Text($0.title).tag(ServiceState?.some($0)) }
+                } label: {
+                    Text(name)
+                    if let current = model.developerState.services[name] {
+                        Text("Now: \(current.title)")
+                    } else {
+                        Text("Not installed yet")
+                    }
+                }
+            }
+            HStack {
+                Menu("Add Service") {
+                    ForEach(candidates, id: \.self) { ref in
+                        Button(ref.fullName) { setService(ref, .atLogin) }
+                    }
+                }
+                .disabled(candidates.isEmpty)
+                .fixedSize()
+                .help(candidates.isEmpty ? "Add command-line tools to this setup first" : "A tool in this setup that runs a background service")
+                Spacer()
+                Button("Use This Mac's Services") {
+                    model.updateSetup(setup.id) { setup in
+                        setup.services = model.developerState.services.sorted { $0.key < $1.key }.compactMap { name, state in
+                            (try? Ref(parsing: name)).map { ServicePolicy(formula: $0, state: state) }
+                        }
+                    }
+                }
+                .disabled(model.developerState.services.isEmpty)
+            }
+        } header: {
+            Text("Homebrew Services")
+        } footer: {
+            Text("Databases and servers installed with Homebrew, such as postgresql or redis. Run at Login also starts it now.")
+        }
+    }
+
+    private func serviceBinding(_ name: String) -> Binding<ServiceState?> {
+        Binding {
+            setup.services?.first { $0.formula.name == name }?.state
+        } set: { state in
+            guard let ref = (setup.services?.first { $0.formula.name == name }?.formula) ?? (try? Ref(parsing: name)) else { return }
+            setService(ref, state)
+        }
+    }
+
+    private func setService(_ ref: Ref, _ state: ServiceState?) {
+        model.updateSetup(setup.id) { setup in
+            var services = (setup.services ?? []).filter { $0.formula != ref }
+            if let state { services.append(ServicePolicy(formula: ref, state: state)) }
+            setup.services = services.isEmpty ? nil : services
+        }
     }
 
     // MARK: Editors
