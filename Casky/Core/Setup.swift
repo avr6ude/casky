@@ -7,4 +7,5 @@ struct SavedSetup: Codable, Hashable, Identifiable, Sendable {
     var items: [Item]
     let createdAt: Date
     var dotfiles: DotfilesConfiguration? = nil
+    var macPreferences: [MacPreference]? = nil
 }

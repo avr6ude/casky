@@ -15,22 +15,22 @@ struct KitView: View {
 struct SetupView: View {
     @Environment(AppModel.self) private var model
     let setup: SavedSetup
-    @State private var showsDotfiles = false
+    private enum Content: String, CaseIterable { case packages = "Apps & Tools", dotfiles = "Dotfiles", preferences = "Mac Preferences" }
+    @State private var content = Content.packages
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Setup content", selection: $showsDotfiles) {
-                Text("Apps & Tools").tag(false)
-                Text("Dotfiles").tag(true)
+            Picker("Setup content", selection: $content) {
+                ForEach(Content.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 260)
+            .frame(width: 440)
             .padding(.top, 16)
-            if showsDotfiles {
-                DotfilesView(setup: setup).id(setup.id)
-            } else {
-                packages
+            switch content {
+            case .packages: packages
+            case .dotfiles: DotfilesView(setup: setup).id(setup.id)
+            case .preferences: MacPreferencesView(setup: setup).id(setup.id)
             }
         }
         .navigationTitle(setup.name)
@@ -46,7 +46,8 @@ struct SetupView: View {
             Menu {
                 Button("Rename…") { model.namePrompt = .rename(setup) }
                 Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
-                Button("Configure Dotfiles…") { showsDotfiles = true }
+                Button("Configure Dotfiles…") { content = .dotfiles }
+                Button("Configure Mac Preferences…") { content = .preferences }
                 Divider()
                 Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
             } label: {

@@ -85,6 +85,7 @@ final class AppModel {
     private let historyFile: JSONFile<[RunRecord]>
     let dotfilesDirectory: URL
     let dotfilesBackupsDirectory: URL
+    let preferencesBackupsDirectory: URL
     /// App Store results seen so far, so selected App Store items keep their
     /// details. Bounded by what the user searched for.
     private var appStoreEntries: [Item: CatalogEntry] = [:]
@@ -106,6 +107,7 @@ final class AppModel {
         historyFile = JSONFile(file: dataDirectory.appending(path: "history.json"))
         dotfilesDirectory = dataDirectory.appending(path: "dotfiles")
         dotfilesBackupsDirectory = dataDirectory.appending(path: "dotfile-backups")
+        preferencesBackupsDirectory = dataDirectory.appending(path: "preference-backups")
         self.defaults = defaults
         self.locateHomebrew = locateHomebrew
         self.applicationFolders = applicationFolders
@@ -351,6 +353,17 @@ final class AppModel {
         }
         var updated = setups
         updated[index].dotfiles = try configuration?.validated()
+        try setupsFile.save(updated)
+        setups = updated
+    }
+
+    func saveMacPreferences(_ preferences: [MacPreference], for id: SavedSetup.ID) throws {
+        if let setupsLoadError { throw MacPreferencesError.invalid(setupsLoadError) }
+        guard let index = setups.firstIndex(where: { $0.id == id }) else {
+            throw MacPreferencesError.invalid("This setup no longer exists.")
+        }
+        var updated = setups
+        updated[index].macPreferences = try MacPreference.validated(preferences)
         try setupsFile.save(updated)
         setups = updated
     }
