@@ -1,0 +1,173 @@
+[
+  {
+    "id": "browser",
+    "symbol": "safari",
+    "title": "Which browser do you use?",
+    "subtitle": "Safari is already here. Pick any others you want.",
+    "options": [
+      {"cask": "google-chrome"},
+      {"cask": "firefox"},
+      {"cask": "arc"},
+      {"cask": "brave-browser"},
+      {"cask": "zen"},
+      {"cask": "microsoft-edge"},
+      {"cask": "vivaldi"},
+      {"cask": "orion"}
+    ]
+  },
+  {
+    "id": "editor",
+    "symbol": "chevron.left.forwardslash.chevron.right",
+    "title": "Do you write code?",
+    "subtitle": "Pick an editor, or skip if you don't.",
+    "options": [
+      {"cask": "visual-studio-code"},
+      {"cask": "cursor"},
+      {"cask": "zed"},
+      {"cask": "sublime-text"},
+      {"cask": "jetbrains-toolbox"},
+      {"cask": "nova"},
+      {"cask": "bbedit"}
+    ]
+  },
+  {
+    "id": "terminal",
+    "symbol": "terminal",
+    "title": "A better terminal?",
+    "subtitle": "The built-in Terminal works. These are faster and nicer.",
+    "options": [
+      {"cask": "ghostty"},
+      {"cask": "iterm2"},
+      {"cask": "warp"},
+      {"cask": "kitty"},
+      {"cask": "wezterm"}
+    ]
+  },
+  {
+    "id": "media",
+    "symbol": "play.rectangle",
+    "title": "Video and music",
+    "subtitle": "Players for anything you throw at them.",
+    "options": [
+      {"cask": "iina"},
+      {"cask": "vlc"},
+      {"cask": "spotify"},
+      {"cask": "tidal"},
+      {"cask": "plexamp"},
+      {"formula": "mpv"}
+    ]
+  },
+  {
+    "id": "passwords",
+    "symbol": "key",
+    "title": "Password manager",
+    "subtitle": "Keep logins in sync across your devices.",
+    "options": [
+      {"cask": "1password"},
+      {"cask": "bitwarden"},
+      {"cask": "proton-pass"},
+      {"cask": "keepassxc"}
+    ]
+  },
+  {
+    "id": "productivity",
+    "symbol": "command",
+    "title": "Launcher and windows",
+    "subtitle": "Open anything from the keyboard and snap windows into place.",
+    "options": [
+      {"cask": "raycast"},
+      {"cask": "alfred"},
+      {"cask": "rectangle"},
+      {"cask": "loop"},
+      {"mas": {"id": 441258766, "name": "Magnet"}}
+    ]
+  },
+  {
+    "id": "chat",
+    "symbol": "bubble.left.and.bubble.right",
+    "title": "Chat and meetings",
+    "subtitle": "Where your people are.",
+    "options": [
+      {"cask": "slack"},
+      {"cask": "discord"},
+      {"cask": "telegram"},
+      {"cask": "whatsapp"},
+      {"cask": "signal"},
+      {"cask": "zoom"},
+      {"cask": "microsoft-teams"}
+    ]
+  },
+  {
+    "id": "notes",
+    "symbol": "note.text",
+    "title": "Notes",
+    "subtitle": "For thinking, writing and remembering.",
+    "options": [
+      {"cask": "obsidian"},
+      {"cask": "notion"},
+      {"cask": "logseq"},
+      {"cask": "craft"},
+      {"cask": "anytype"},
+      {"mas": {"id": 1091189122, "name": "Bear"}}
+    ]
+  },
+  {
+    "id": "cloud",
+    "symbol": "icloud",
+    "title": "Cloud storage",
+    "subtitle": "If you keep files somewhere besides iCloud.",
+    "options": [
+      {"cask": "dropbox"},
+      {"cask": "google-drive"},
+      {"cask": "onedrive"},
+      {"cask": "box-drive"}
+    ]
+  },
+  {
+    "id": "office",
+    "symbol": "doc.richtext",
+    "title": "Documents and spreadsheets",
+    "subtitle": "Office suites and PDF tools.",
+    "options": [
+      {"cask": "microsoft-office"},
+      {"cask": "libreoffice"},
+      {"cask": "onlyoffice"},
+      {"cask": "pdf-expert"}
+    ]
+  },
+  {
+    "id": "utilities",
+    "symbol": "wrench.and.screwdriver",
+    "title": "Handy utilities",
+    "subtitle": "Small apps that make a Mac nicer.",
+    "options": [
+      {"cask": "the-unarchiver"},
+      {"cask": "keka"},
+      {"cask": "cleanshot"},
+      {"cask": "shottr"},
+      {"cask": "jordanbaird-ice"},
+      {"cask": "stats"},
+      {"cask": "appcleaner"},
+      {"cask": "maccy"},
+      {"mas": {"id": 937984704, "name": "Amphetamine"}}
+    ]
+  },
+  {
+    "id": "developer",
+    "symbol": "hammer",
+    "title": "Developer tools",
+    "subtitle": "Command-line basics and apps for building software.",
+    "options": [
+      {"formula": "git"},
+      {"formula": "gh"},
+      {"formula": "node"},
+      {"formula": "python@3.13"},
+      {"formula": "uv"},
+      {"cask": "orbstack"},
+      {"cask": "docker-desktop"},
+      {"cask": "tableplus"},
+      {"cask": "fork"},
+      {"mas": {"id": 497799835, "name": "Xcode"}}
+    ]
+  }
+]

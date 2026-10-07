@@ -549,3 +549,12 @@ import Testing
         #expect(AppStoreSearch.lookupURL(ids: [2, 1]).absoluteString.hasSuffix("lookup?id=2,1"))
     }
 }
+
+@Suite struct OnboardingTests {
+    @Test func bundledStepsDecodeWithoutDuplicates() {
+        let steps = OnboardingStep.bundled()
+        #expect(steps.count == 12)
+        #expect(Set(steps.map(\.id)).count == steps.count)
+        #expect(steps.allSatisfy { !$0.options.isEmpty && $0.options.count == $0.options.uniqued().count })
+    }
+}

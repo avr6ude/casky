@@ -15,22 +15,20 @@ enum Destination: Hashable {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
-    @State private var destination: Destination? = .home
+    @State private var destination: Destination? = .browse(nil)
+    /// First launch shows setup full-window until it's finished or skipped.
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
 
     var body: some View {
-        NavigationSplitView {
-            Sidebar(destination: $destination)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 230)
-        } detail: {
-            detail
-                // Fill the column so the bar sits at the window's bottom even
-                // when the content (an empty state) is short.
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if !model.selection.isEmpty {
-                        SelectionBar { destination = .selection }
-                    }
+        Group {
+            if onboardingComplete {
+                main
+            } else {
+                OnboardingView {
+                    onboardingComplete = true
+                    destination = .browse(nil)
                 }
+            }
         }
         .task { await model.start() }
         .modifier(Prompts())
@@ -40,21 +38,38 @@ struct RootView: View {
         .sheet(item: Bindable(model).previewEntry) { entry in
             AppPreview(entry: entry)
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await model.refreshInstalled() }
+        }
+    }
+
+    private var main: some View {
+        NavigationSplitView {
+            Sidebar(destination: $destination)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 230)
+        } detail: {
+            detail
+                // Fill the column so the bar sits at the window's bottom even
+                // when the content (an empty state) is short.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if !model.selection.isEmpty, destination != .home {
+                        SelectionBar { destination = .selection }
+                    }
+                }
+        }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first else { return false }
             model.importBrewfile(at: url)
             destination = .selection
             return true
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            Task { await model.refreshInstalled() }
-        }
     }
 
     @ViewBuilder private var detail: some View {
-        switch destination ?? .home {
+        switch destination ?? .browse(nil) {
         case .home:
-            HomeView { destination = .kit($0.slug) }
+            OnboardingView { destination = .browse(nil) }
         case .selection:
             SelectionView()
         case .history:
