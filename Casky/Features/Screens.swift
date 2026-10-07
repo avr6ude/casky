@@ -4,8 +4,21 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     let open: (Kit) -> Void
+    @State private var query = ""
 
     var body: some View {
+        Group {
+            if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                kits
+            } else {
+                SearchResults(query: query, kind: nil)
+            }
+        }
+        .navigationTitle("Start")
+        .searchable(text: $query, placement: .toolbar, prompt: "Search apps, tools and the App Store")
+    }
+
+    private var kits: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -27,7 +40,6 @@ struct HomeView: View {
             .padding(32)
             .frame(maxWidth: 1100, alignment: .leading)
         }
-        .navigationTitle("Start")
     }
 }
 
@@ -166,53 +178,73 @@ struct SelectionView: View {
 }
 
 struct BrowseView: View {
-    @Environment(AppModel.self) private var model
     let kind: Item.Kind
     @State private var query = ""
-    @State private var results: [CatalogEntry] = []
-    @State private var searchError: String?
+
+    var body: some View {
+        SearchResults(query: query, kind: kind)
+            .navigationTitle(kind.pluralLabel)
+            .searchable(text: $query, placement: .toolbar, prompt: "Search \(kind.pluralLabel)")
+    }
+}
+
+/// Search over one source, or over everything (Homebrew first, then the
+/// App Store) when `kind` is nil.
+struct SearchResults: View {
+    @Environment(AppModel.self) private var model
+    let query: String
+    let kind: Item.Kind?
+    @State private var homebrewResults: [CatalogEntry] = []
+    @State private var appStoreResults: [CatalogEntry] = []
+    @State private var appStoreError: String?
     @State private var isSearching = false
+
+    private var includesHomebrew: Bool { kind != .mas }
+    private var includesAppStore: Bool { kind == nil || kind == .mas }
+    private var term: String { query.trimmingCharacters(in: .whitespaces) }
+    private var results: [CatalogEntry] { homebrewResults + appStoreResults }
 
     var body: some View {
         Group {
-            if kind == .mas {
-                appStore
+            if includesHomebrew {
+                CatalogGate { content }
             } else {
-                CatalogGate { homebrew }
+                content
             }
         }
-        .navigationTitle(kind.pluralLabel)
-        .searchable(text: $query, placement: .toolbar, prompt: "Search \(kind.pluralLabel)")
         .task(id: SearchKey(query: query, catalogVersion: model.catalogVersion)) { await search() }
     }
 
-    @ViewBuilder private var homebrew: some View {
-        if results.isEmpty, !query.isEmpty, !isSearching {
-            ContentUnavailableView.search(text: query)
-        } else {
-            ItemList(entries: results)
-        }
-    }
-
-    @ViewBuilder private var appStore: some View {
-        if let searchError {
+    @ViewBuilder private var content: some View {
+        if kind == .mas, term.isEmpty {
+            ContentUnavailableView(
+                "Search the App Store",
+                systemImage: Item.Kind.mas.symbol,
+                description: Text("casky installs free App Store apps and apps you've already bought with your Apple Account.")
+            )
+        } else if let appStoreError, results.isEmpty, !isSearching {
             ContentUnavailableView {
                 Label("Couldn't search the App Store", systemImage: "wifi.exclamationmark")
             } description: {
-                Text(searchError)
+                Text(appStoreError)
             } actions: {
                 Button("Try Again") { Task { await search() } }
             }
-        } else if query.trimmingCharacters(in: .whitespaces).isEmpty {
-            ContentUnavailableView(
-                "Search the App Store",
-                systemImage: kind.symbol,
-                description: Text("casky can install App Store apps you've already got with your Apple Account.")
-            )
-        } else if results.isEmpty, !isSearching {
+        } else if results.isEmpty, !term.isEmpty, !isSearching {
             ContentUnavailableView.search(text: query)
         } else {
-            ItemList(entries: results)
+            VStack(spacing: 0) {
+                if let appStoreError {
+                    Label("App Store results are missing: \(appStoreError)", systemImage: "wifi.exclamationmark")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    Divider()
+                }
+                ItemList(entries: results)
+            }
         }
     }
 
@@ -224,22 +256,27 @@ struct BrowseView: View {
     private func search() async {
         isSearching = true
         defer { isSearching = false }
-        if kind == .mas {
-            let term = query.trimmingCharacters(in: .whitespaces)
-            guard !term.isEmpty else { results = []; searchError = nil; return }
-            // Wait for typing to pause before hitting the network.
-            do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
-            do {
-                results = try await model.searchAppStore(term)
-                searchError = nil
-            } catch is CancellationError {
-            } catch {
-                searchError = AppModel.describe(error)
-            }
-        } else if let catalog = model.catalog {
+        if includesHomebrew, let catalog = model.catalog {
             let query = query, kind = kind
             let found = await Task.detached { catalog.search(query, kind: kind) }.value
-            if !Task.isCancelled { results = found }
+            guard !Task.isCancelled else { return }
+            homebrewResults = found
+        }
+        guard includesAppStore else { return }
+        guard !term.isEmpty else {
+            appStoreResults = []
+            appStoreError = nil
+            return
+        }
+        // Wait for typing to pause before hitting the network.
+        do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+        do {
+            appStoreResults = try await model.searchAppStore(term)
+            appStoreError = nil
+        } catch is CancellationError {
+        } catch {
+            appStoreResults = []
+            appStoreError = AppModel.describe(error)
         }
     }
 }
