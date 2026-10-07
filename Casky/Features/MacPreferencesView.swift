@@ -136,6 +136,7 @@ struct MacPreferencesView: View {
             case .unchanged: remove(preset.id)
             case .systemDefault: set(preset, nil)
             case .value(let value): set(preset, value)
+            case .custom: break
             }
         }
     }
@@ -209,25 +210,77 @@ private enum Choice: Hashable {
     case unchanged
     case systemDefault
     case value(MacPreferenceValue)
+    /// The pop-up item that reveals a number field; never stored.
+    case custom
 }
 
+/// A pop-up of the preset's values. Presets with a range also offer
+/// Custom…, which shows a field and stepper for any number in it.
 private struct PresetRow: View {
     let preset: MacPreference.Preset
     @Binding var choice: Choice
+    @State private var wantsCustom = false
+
+    private var number: Int? {
+        if case .value(let value) = choice, let number = value.number { Int(exactly: number.rounded()) } else { nil }
+    }
+    private var isOffList: Bool {
+        if case .value(let value) = choice { !preset.options.contains { $0.value == value } } else { false }
+    }
+    private var isCustom: Bool { preset.range != nil && (wantsCustom || isOffList) }
 
     var body: some View {
-        Picker(preset.title, selection: $choice) {
+        LabeledContent {
+            HStack(spacing: 8) {
+                if isCustom, let range = preset.range {
+                    let value = Binding {
+                        number ?? range.lowerBound
+                    } set: {
+                        choice = .value(.integer(min(max($0, range.lowerBound), range.upperBound)))
+                    }
+                    TextField("Value", value: value, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 64)
+                        .help("\(range.lowerBound)–\(range.upperBound)")
+                    Stepper("Value", value: value, in: range)
+                }
+                picker
+            }
+            .labelsHidden()
+        } label: {
+            Text(preset.title)
+        }
+        .foregroundStyle(choice == .unchanged ? .secondary : .primary)
+    }
+
+    private var picker: some View {
+        Picker(preset.title, selection: Binding {
+            isCustom ? .custom : choice
+        } set: { new in
+            if new == .custom {
+                wantsCustom = true
+                if number == nil, let middle = preset.options[preset.options.count / 2].value.number {
+                    choice = .value(.integer(Int(middle)))
+                }
+            } else {
+                wantsCustom = false
+                choice = new
+            }
+        }) {
             Text("Don't Change").tag(Choice.unchanged)
             Divider()
             ForEach(preset.options, id: \.self) { Text($0.title).tag(Choice.value($0.value)) }
-            // A captured value that isn't one of the options.
-            if case .value(let value) = choice, !preset.options.contains(where: { $0.value == value }) {
+            if preset.range != nil {
+                Text("Custom…").tag(Choice.custom)
+            } else if case .value(let value) = choice, isOffList {
+                // A captured value that isn't one of the options.
                 Text(MacPreference(domain: preset.domain, key: preset.key, value: nil).describe(value)).tag(choice)
             }
             Divider()
             Text("System Default").tag(Choice.systemDefault)
         }
-        .foregroundStyle(choice == .unchanged ? .secondary : .primary)
+        .fixedSize()
     }
 }
 

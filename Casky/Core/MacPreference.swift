@@ -63,6 +63,9 @@ struct MacPreference: Codable, Hashable, Identifiable, Sendable {
         let domain: String
         let key: String
         let options: [Option]
+        /// Whole numbers allowed besides the options; nil when only the
+        /// options make sense.
+        var range: ClosedRange<Int>? = nil
         var id: String { domain + "\u{0}" + key }
 
         static func onOff(_ group: String, _ title: String, _ domain: String, _ key: String) -> Self {
@@ -74,7 +77,7 @@ struct MacPreference: Codable, Hashable, Identifiable, Sendable {
         .onOff("Dock", "Automatically hide and show the Dock", "com.apple.dock", "autohide"),
         .init(group: "Dock", title: "Size", domain: "com.apple.dock", key: "tilesize", options: [
             .init("Small", .integer(32)), .init("Medium", .integer(48)), .init("Large", .integer(64)), .init("Extra Large", .integer(96)),
-        ]),
+        ], range: 16...128),
         .onOff("Dock", "Magnification", "com.apple.dock", "magnification"),
         .onOff("Dock", "Show suggested and recent apps", "com.apple.dock", "show-recents"),
         .onOff("Finder", "Show hidden files", "com.apple.finder", "AppleShowAllFiles"),
@@ -84,10 +87,10 @@ struct MacPreference: Codable, Hashable, Identifiable, Sendable {
         // Values are the positions of the sliders in System Settings.
         .init(group: "Keyboard", title: "Key repeat rate", domain: "NSGlobalDomain", key: "KeyRepeat", options: [
             .init("Slowest", .integer(120)), .init("Slow", .integer(60)), .init("Medium", .integer(30)), .init("Fast", .integer(6)), .init("Fastest", .integer(2)),
-        ]),
+        ], range: 1...300),
         .init(group: "Keyboard", title: "Delay until repeat", domain: "NSGlobalDomain", key: "InitialKeyRepeat", options: [
             .init("Longest", .integer(120)), .init("Long", .integer(68)), .init("Medium", .integer(35)), .init("Short", .integer(25)), .init("Shortest", .integer(15)),
-        ]),
+        ], range: 10...300),
         .onOff("Keyboard", "Correct spelling automatically", "NSGlobalDomain", "NSAutomaticSpellingCorrectionEnabled"),
         .onOff("Keyboard", "Use smart quotes", "NSGlobalDomain", "NSAutomaticQuoteSubstitutionEnabled"),
         .onOff("Keyboard", "Use smart dashes", "NSGlobalDomain", "NSAutomaticDashSubstitutionEnabled"),
@@ -140,7 +143,7 @@ enum MacPreferenceValue: Codable, Hashable, Sendable {
         return self == other
     }
 
-    private var number: Double? {
+    var number: Double? {
         switch self {
         case .integer(let value): Double(value)
         case .decimal(let value): value
