@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="arrow" x1="0" y1="421" x2="0" y2="699" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8E7CFF"/>
+      <stop offset="1" stop-color="#4B3BDB"/>
+    </linearGradient>
+  </defs>
+  <!-- Download arrow on the front tile. -->
+  <path fill="url(#arrow)" stroke="url(#arrow)" stroke-width="16" stroke-linejoin="round" d="M471 421H553V550H632L512 699L392 550H471Z"/>
+</svg>

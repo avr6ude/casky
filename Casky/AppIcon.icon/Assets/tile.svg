@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Front app tile with the download arrow cut out, so the background (and the accent tint) shows through it. -->
-  <path fill="#ffffff" fill-rule="evenodd" d="M382 320H642A110 110 0 0 1 752 430V690A110 110 0 0 1 642 800H382A110 110 0 0 1 272 690V430A110 110 0 0 1 382 320Z M471 421H553V550H632L512 699L392 550H471Z"/>
+  <!-- Front app tile. -->
+  <path fill="#ffffff" d="M382 320H642A110 110 0 0 1 752 430V690A110 110 0 0 1 642 800H382A110 110 0 0 1 272 690V430A110 110 0 0 1 382 320Z"/>
 </svg>
