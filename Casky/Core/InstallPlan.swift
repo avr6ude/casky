@@ -19,6 +19,13 @@ struct InstallStep: Hashable, Sendable {
             }
         }
 
+        var isUpdate: Bool {
+            switch self {
+            case .update, .replace: true
+            case .tap, .install: false
+            }
+        }
+
         var item: Item? {
             switch self {
             case .tap: nil

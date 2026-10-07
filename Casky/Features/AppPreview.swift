@@ -32,6 +32,9 @@ struct AppPreview: View {
             footer
         }
         .frame(width: 880, height: 760)
+        // Opaque, not the sheet's glass: vibrant text looks soft on
+        // non-Retina displays.
+        .background(Color(nsColor: .windowBackgroundColor))
         .task(id: entry.item) { await load() }
         .task(id: entry.item) { await loadLocal() }
     }

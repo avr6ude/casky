@@ -17,6 +17,10 @@ extension AppModel {
         case update([Item])
     }
 
+    var isUpdateRun: Bool {
+        if case .update = lastRun { true } else { false }
+    }
+
     /// Installs `items` (the selection by default) one step at a time.
     func install(_ items: [Item]? = nil) async {
         await perform(.install(items ?? selection))
@@ -63,6 +67,9 @@ extension AppModel {
             run?.finish(outcome)
         }
         if let run { record(run) }
+        // The run is over for the user; refreshing what's installed can
+        // take a few seconds and shouldn't keep the sheet on "Installing…".
+        isInstalling = false
         await refreshInstalled()
         await refreshUpdates()
     }

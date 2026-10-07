@@ -5,7 +5,6 @@ import SwiftUI
 /// in flight, the original output for failures, then Retry or Done.
 struct RunView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let run: RunState
 
     var body: some View {
@@ -26,12 +25,15 @@ struct RunView: View {
                 }
             }
             .listStyle(.inset(alternatesRowBackgrounds: false))
+            .scrollContentBackground(.hidden)
             footer
         }
         .padding(24)
-        .frame(minWidth: 600, idealWidth: 680, minHeight: 460, idealHeight: 560)
+        .frame(width: 680, height: 560)
+        // Opaque, not the sheet's glass: text over translucent material is
+        // drawn with vibrancy, which looks soft on non-Retina displays.
+        .background(Color(nsColor: .windowBackgroundColor))
         .interactiveDismissDisabled(model.isInstalling)
-        .animation(reduceMotion ? nil : .default, value: run.outcomes.count)
     }
 
     private var finishedCount: Int { run.outcomes.count }
@@ -48,8 +50,8 @@ struct RunView: View {
     }
 
     private var title: String {
-        if model.isInstalling { return run.stopRequested ? "Stopping after this item…" : "Installing…" }
-        if run.plan.steps.isEmpty { return "Everything is already installed" }
+        if model.isInstalling { return run.stopRequested ? "Stopping after this item…" : model.isUpdateRun ? "Updating…" : "Installing…" }
+        if run.plan.steps.isEmpty { return model.isUpdateRun ? "Everything is up to date" : "Everything is already installed" }
         if run.stopRequested { return "Stopped" }
         return run.failedCount == 0 ? "All done" : "Finished with \(run.failedCount) \(run.failedCount == 1 ? "problem" : "problems")"
     }
@@ -124,7 +126,7 @@ private struct StepRow: View {
 
     private var detail: String {
         switch outcome {
-        case .installed: "Installed"
+        case .installed: step.action.isUpdate ? "Updated" : "Installed"
         case .failed(let status, _): "Failed (exit \(status))"
         case .skipped(let reason): "Skipped: \(reason)"
         case nil: isCurrent ? "Installing…" : "Waiting"
