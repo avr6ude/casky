@@ -59,6 +59,8 @@ final class AppModel {
     /// The current or last install run; nil when none is shown.
     var run: RunState?
     var isInstalling = false
+    /// Homebrew is updating its package data before a run's steps start.
+    var isPreparing = false
     /// Live output of the step being installed.
     var currentOutput: [String] = []
     /// A non-fatal problem during the run (e.g. `brew update` failed).

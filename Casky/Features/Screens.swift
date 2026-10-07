@@ -17,6 +17,7 @@ struct SetupView: View {
     let setup: SavedSetup
     private enum Content: String, CaseIterable { case packages = "Apps & Tools", dotfiles = "Dotfiles", preferences = "Mac Preferences" }
     @State private var content = Content.packages
+    @State private var isApplying = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +35,13 @@ struct SetupView: View {
             }
         }
         .navigationTitle(setup.name)
+        .sheet(isPresented: $isApplying) { ApplySetupSheet(setup: setup) }
         .toolbar {
+            Button("Apply Setup…", systemImage: "play.fill") { isApplying = true }
+                .labelStyle(.titleAndIcon)
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isInstalling)
+                .help("Install this setup's apps and tools, restore its dotfiles and apply its Mac preferences")
             Menu {
                 Button("Rename…") { model.namePrompt = .rename(setup) }
                 Divider()
@@ -56,6 +63,95 @@ struct SetupView: View {
             subtitle: "Saved \(setup.createdAt.formatted(date: .abbreviated, time: .omitted))",
             entries: setup.items.map(model.displayEntry(for:))
         )
+    }
+}
+
+/// The one check before applying a setup: everything that will happen, in
+/// the order it runs.
+private struct ApplySetupSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let setup: SavedSetup
+
+    var body: some View {
+        let plan = model.previewPlan(for: setup)
+        let taps = plan.steps.compactMap { if case .tap(let tap) = $0.action { tap } else { nil } }
+        let installs = plan.steps.compactMap { if case .install(let item) = $0.action { item } else { nil } }
+        let dotfiles = setup.dotfiles?.files ?? []
+        let preferences = setup.macPreferences ?? []
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Apply \(setup.name)?").font(.title2.bold())
+                Text("Runs top to bottom. You can stop after any step and retry what didn't finish.")
+                    .foregroundStyle(.secondary)
+            }
+            .padding([.horizontal, .top], 24)
+            Form {
+                Section("Apps & Tools") {
+                    ForEach(taps, id: \.self) { tap in
+                        LabeledContent("Add tap \(tap)", value: "Tap")
+                    }
+                    ForEach(installs, id: \.self) { item in
+                        let entry = model.displayEntry(for: item)
+                        LabeledContent {
+                            Text(item.kind.label)
+                        } label: {
+                            Label { Text(entry.title) } icon: { ItemIcon(entry: entry, size: 20) }
+                        }
+                    }
+                    if !plan.alreadyInstalled.isEmpty || installs.isEmpty {
+                        Text(setup.items.isEmpty ? "None in this setup" : "^[\(plan.alreadyInstalled.count) already installed](inflect: true), skipped")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Section("Dotfiles") {
+                    if dotfiles.isEmpty {
+                        Text("None in this setup").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(dotfiles) { file in
+                            LabeledContent("~/\(file.destination.value)", value: file.mode.title)
+                        }
+                    }
+                }
+                Section("Mac Preferences") {
+                    if preferences.isEmpty {
+                        Text("None in this setup").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(preferences) { preference in
+                            LabeledContent(preference.title, value: preference.describe(preference.value))
+                        }
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            HStack(spacing: 12) {
+                Text(note(installs: installs))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Apply Setup") {
+                    dismiss()
+                    Task { await model.apply(setup) }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(plan.steps.isEmpty || model.isInstalling)
+            }
+            .controlSize(.large)
+            .padding(20)
+        }
+        .frame(width: 560, height: 600)
+    }
+
+    private func note(installs: [Item]) -> String {
+        if model.homebrew == nil, !installs.isEmpty { return "Homebrew isn't installed, so apps and tools will be skipped." }
+        var notes: [String] = []
+        if installs.contains(where: { $0.kind == .mas }) { notes.append("App Store apps need you signed in to the App Store.") }
+        if installs.contains(where: { model.catalog?.entry(for: $0)?.needsAdmin == true }) { notes.append("Some installs ask for Touch ID or your password.") }
+        if setup.dotfiles?.files.isEmpty == false || setup.macPreferences?.isEmpty == false { notes.append("Originals are backed up first.") }
+        return notes.joined(separator: " ")
     }
 }
 
@@ -100,7 +196,7 @@ struct CollectionView<Actions: View>: View {
                 }
                 Spacer()
                 actions
-                Button(items.allSatisfy(model.isSelected) ? "Deselect All" : "Select All") {
+                Button(!items.isEmpty && items.allSatisfy(model.isSelected) ? "Deselect All" : "Select All") {
                     model.toggleAll(items)
                 }
                 .disabled(items.isEmpty)

@@ -9,26 +9,36 @@ struct InstallStep: Hashable, Sendable {
         case update(Item)
         /// Have Homebrew replace a copy it doesn't manage with its newer one.
         case replace(Item)
+        /// Restore a setup's dotfiles from its repository.
+        case dotfiles(setup: UUID, DotfilesConfiguration)
+        /// Write a setup's Mac preferences.
+        case preferences(setup: UUID, [MacPreference])
 
         /// Short name for messages: the tap, or the formula/cask/app name.
         var name: String {
             switch item {
             case .formula(let ref), .cask(let ref): ref.name
             case .mas(_, let name): name
-            case nil: if case .tap(let tap) = self { tap } else { "" }
+            case nil:
+                switch self {
+                case .tap(let tap): tap
+                case .dotfiles: "Dotfiles"
+                case .preferences: "Mac preferences"
+                case .install, .update, .replace: ""
+                }
             }
         }
 
         var isUpdate: Bool {
             switch self {
             case .update, .replace: true
-            case .tap, .install: false
+            case .tap, .install, .dotfiles, .preferences: false
             }
         }
 
         var item: Item? {
             switch self {
-            case .tap: nil
+            case .tap, .dotfiles, .preferences: nil
             case .install(let item), .update(let item), .replace(let item): item
             }
         }
@@ -48,6 +58,25 @@ struct InstallPlan: Sendable {
     let steps: [InstallStep]
     /// Selected items skipped because they are already installed.
     let alreadyInstalled: [Item]
+
+    init(steps: [InstallStep], alreadyInstalled: [Item]) {
+        self.steps = steps
+        self.alreadyInstalled = alreadyInstalled
+    }
+
+    /// Applying a saved setup: its packages (planned like any selection),
+    /// then its dotfiles, then its Mac preferences, which may configure
+    /// apps installed a moment earlier.
+    init(setup: SavedSetup, packages: InstallPlan) {
+        var steps = packages.steps
+        if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
+            steps.append(InstallStep(action: .dotfiles(setup: setup.id, dotfiles), prerequisites: []))
+        }
+        if let preferences = setup.macPreferences, !preferences.isEmpty {
+            steps.append(InstallStep(action: .preferences(setup: setup.id, preferences), prerequisites: []))
+        }
+        self.init(steps: steps, alreadyInstalled: packages.alreadyInstalled)
+    }
 
     /// Updating: one step per update, App Store apps last (they may ask for
     /// the password). Taps and `mas` are already there.

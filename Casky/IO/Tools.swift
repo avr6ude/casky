@@ -89,6 +89,8 @@ struct Homebrew: Sendable {
             return try await ToolRunner.stream(executable, arguments: ["install", "--cask", "--force", ref.fullName], environment: environment, onLine: onLine)
         case .update(.mas(let id, _)), .replace(.mas(let id, _)):
             return try await runMasAsRoot(["update", String(id)], environment: environment, onLine: onLine)
+        case .dotfiles, .preferences:
+            preconditionFailure("\(action.name) isn't a Homebrew step")
         }
     }
 

@@ -17,7 +17,7 @@ struct RunView: View {
             }
             List {
                 ForEach(run.plan.steps, id: \.self) { step in
-                    StepRow(step: step, outcome: run.outcomes[step.action], isCurrent: run.current == step)
+                    StepRow(step: step, outcome: run.outcomes[step.action], log: run.logs[step.action] ?? [], isCurrent: run.current == step)
                 }
                 if !run.plan.alreadyInstalled.isEmpty {
                     Text("\(run.plan.alreadyInstalled.count) already installed, skipped")
@@ -41,7 +41,10 @@ struct RunView: View {
     @ViewBuilder private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.title2.bold())
-            if model.isInstalling {
+            if model.isPreparing {
+                ProgressView("Updating Homebrew's package list…")
+                    .progressViewStyle(.linear)
+            } else if model.isInstalling {
                 ProgressView(value: Double(finishedCount), total: Double(max(run.plan.steps.count, 1)))
                     .accessibilityLabel("Install progress")
                     .accessibilityValue("\(finishedCount) of \(run.plan.steps.count) done")
@@ -50,8 +53,11 @@ struct RunView: View {
     }
 
     private var title: String {
-        if model.isInstalling { return run.stopRequested ? "Stopping after this item…" : model.isUpdateRun ? "Updating…" : "Installing…" }
-        if run.plan.steps.isEmpty { return model.isUpdateRun ? "Everything is up to date" : "Everything is already installed" }
+        if model.isInstalling {
+            if run.stopRequested { return "Stopping after this item…" }
+            return model.isUpdateRun ? "Updating…" : model.isSetupRun ? "Applying Setup…" : "Installing…"
+        }
+        if run.plan.steps.isEmpty { return model.isUpdateRun ? "Everything is up to date" : model.isSetupRun ? "Nothing to apply" : "Everything is already installed" }
         if run.stopRequested { return "Stopped" }
         return run.failedCount == 0 ? "All done" : "Finished with \(run.failedCount) \(run.failedCount == 1 ? "problem" : "problems")"
     }
@@ -61,7 +67,7 @@ struct RunView: View {
             Spacer()
             if model.isInstalling {
                 Button("Stop After This Item") { model.stopAfterCurrentStep() }
-                    .disabled(run.stopRequested)
+                    .disabled(run.stopRequested || model.isPreparing)
             } else {
                 if run.failedCount > 0 || run.stopRequested {
                     Button("Retry Unfinished") { Task { await model.retryLastRun() } }
@@ -78,6 +84,7 @@ private struct StepRow: View {
     @Environment(AppModel.self) private var model
     let step: InstallStep
     let outcome: RunState.Outcome?
+    let log: [String]
     let isCurrent: Bool
 
     var body: some View {
@@ -95,6 +102,9 @@ private struct StepRow: View {
             if isCurrent, !model.currentOutput.isEmpty {
                 ConsoleView(lines: model.currentOutput, height: 200)
             }
+            if case .installed = outcome, !log.isEmpty {
+                StepDetails(lines: log)
+            }
             if case .failed(_, let output) = outcome {
                 if case .mas(let id, _) = step.action.item {
                     // Paid apps not yet bought, or App Store sign-in, need the App Store itself.
@@ -106,10 +116,7 @@ private struct StepRow: View {
                     .controlSize(.small)
                 }
                 if !output.isEmpty {
-                    DisclosureGroup("Details") {
-                        ConsoleView(lines: output, height: 160)
-                    }
-                    .font(.callout)
+                    StepDetails(lines: output)
                 }
             }
         }
@@ -121,16 +128,22 @@ private struct StepRow: View {
         case .tap(let tap): "Add tap \(tap)"
         case .install(let item): model.displayEntry(for: item).title
         case .update(let item), .replace(let item): "Update \(model.displayEntry(for: item).title)"
+        case .dotfiles(_, let configuration): configuration.files.count == 1 ? "Restore 1 dotfile" : "Restore \(configuration.files.count) dotfiles"
+        case .preferences(_, let preferences): preferences.count == 1 ? "Apply 1 Mac setting" : "Apply \(preferences.count) Mac settings"
         }
     }
 
     private var detail: String {
         switch outcome {
-        case .installed: step.action.isUpdate ? "Updated" : "Installed"
+        case .installed: step.action.isUpdate ? "Updated" : step.action.item == nil && !isTap ? "Done" : "Installed"
         case .failed(let status, _): "Failed (exit \(status))"
         case .skipped(let reason): "Skipped: \(reason)"
-        case nil: isCurrent ? "Installing…" : "Waiting"
+        case nil: isCurrent ? (step.action.item == nil && !isTap ? "Applying…" : "Installing…") : "Waiting"
         }
+    }
+
+    private var isTap: Bool {
+        if case .tap = step.action { true } else { false }
     }
 
     @ViewBuilder private var status: some View {
@@ -146,6 +159,32 @@ private struct StepRow: View {
                 ProgressView().controlSize(.small)
             } else {
                 Image(systemName: "circle").foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+/// A step's output behind a Details toggle. DisclosureGroup inside a List
+/// row draws no chevron and doesn't expand on macOS.
+private struct StepDetails: View {
+    let lines: [String]
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.snappy) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Details")
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right").imageScale(.small)
+                }
+            }
+            .buttonStyle(.link)
+            .font(.callout)
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            if isExpanded {
+                ConsoleView(lines: lines, height: 140)
             }
         }
     }

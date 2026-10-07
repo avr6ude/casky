@@ -17,6 +17,9 @@ struct RunState: Sendable {
     /// The step being run, if any.
     private(set) var current: InstallStep?
     private(set) var stopRequested = false
+    /// What a finished step reported, kept for steps whose output says what
+    /// changed (dotfiles, preferences).
+    private(set) var logs: [InstallStep.Action: [String]] = [:]
     private var nextIndex = 0
 
     init(plan: InstallPlan) {
@@ -48,9 +51,10 @@ struct RunState: Sendable {
         return nil
     }
 
-    mutating func finish(_ outcome: Outcome) {
+    mutating func finish(_ outcome: Outcome, log: [String] = []) {
         guard let step = current else { preconditionFailure("no step is running") }
         outcomes[step.action] = outcome
+        if !log.isEmpty { logs[step.action] = log }
         current = nil
     }
 

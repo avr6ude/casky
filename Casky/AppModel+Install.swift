@@ -15,6 +15,22 @@ extension AppModel {
     enum RunKind: Sendable {
         case install([Item])
         case update([Item])
+        case setup(SavedSetup.ID)
+    }
+
+    /// What applying a saved setup would do right now.
+    func previewPlan(for setup: SavedSetup) -> InstallPlan {
+        InstallPlan(setup: setup, packages: previewPlan(for: setup.items))
+    }
+
+    var isSetupRun: Bool {
+        if case .setup = lastRun { true } else { false }
+    }
+
+    /// Installs a setup's packages, restores its dotfiles and applies its
+    /// Mac preferences, in one run.
+    func apply(_ setup: SavedSetup) async {
+        await perform(.setup(setup.id))
     }
 
     var isUpdateRun: Bool {
@@ -38,33 +54,47 @@ extension AppModel {
     }
 
     private func perform(_ kind: RunKind) async {
-        guard !isInstalling, let homebrew else { return }
+        // A setup can also restore dotfiles and preferences without Homebrew;
+        // its package steps then fail and say why.
+        guard !isInstalling, homebrew != nil || { if case .setup = kind { true } else { false } }() else { return }
         isInstalling = true
         defer { isInstalling = false }
 
         lastRun = kind
         runNote = nil
         currentOutput = []
+        // Show the progress window right away: updating Homebrew first can
+        // take a while.
+        run = RunState(plan: InstallPlan(steps: [], alreadyInstalled: []))
+        isPreparing = true
         do {
-            _ = try await homebrew.run(["update"])
+            _ = try await homebrew?.run(["update"])
         } catch {
             // Not fatal: Homebrew works with the package data it already has.
             runNote = "Couldn't update Homebrew first: \(Self.describe(error))"
         }
         await refreshInstalled()
+        isPreparing = false
         switch kind {
         case .install(let items):
             run = RunState(plan: previewPlan(for: items))
         case .update(let items):
             await refreshUpdates()
             run = RunState(plan: InstallPlan(updates: items.compactMap { updates[$0] }))
+        case .setup(let id):
+            // The saved version, so Retry picks up edits made in between.
+            guard let setup = setups.first(where: { $0.id == id }) else {
+                run = nil
+                return
+            }
+            run = RunState(plan: previewPlan(for: setup))
         }
 
         while let step = run?.nextStep() {
             currentOutput = []
             // Await first: `run` may change (Stop) while the step runs.
             let outcome = await execute(step, with: homebrew)
-            run?.finish(outcome)
+            run?.finish(outcome, log: step.action.item == nil ? currentOutput : [])
         }
         if let run { record(run) }
         // The run is over for the user; refreshing what's installed can
@@ -84,11 +114,23 @@ extension AppModel {
         currentOutput = []
     }
 
-    private func execute(_ step: InstallStep, with homebrew: Homebrew) async -> RunState.Outcome {
+    private func execute(_ step: InstallStep, with homebrew: Homebrew?) async -> RunState.Outcome {
         let (lines, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(1000))
-        let task = Task.detached {
+        let checkouts = dotfilesDirectory, dotfileBackups = dotfilesBackupsDirectory, preferenceBackups = preferencesBackupsDirectory
+        let task = Task.detached { () async throws -> Int32 in
             defer { continuation.finish() }
-            return try await homebrew.execute(step.action) { continuation.yield($0) }
+            let onLine: @Sendable (String) -> Void = { continuation.yield($0) }
+            switch step.action {
+            case .dotfiles(let id, let configuration):
+                try await SetupSteps.restoreDotfiles(configuration, checkouts: checkouts.appending(path: id.uuidString), backups: dotfileBackups, onLine: onLine)
+                return 0
+            case .preferences(let id, let preferences):
+                try await SetupSteps.applyPreferences(preferences, backups: preferenceBackups.appending(path: id.uuidString), onLine: onLine)
+                return 0
+            default:
+                guard let homebrew else { throw ToolError.missing("Homebrew") }
+                return try await homebrew.execute(step.action, onLine: onLine)
+            }
         }
         for await line in lines {
             currentOutput.append(line)
