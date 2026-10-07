@@ -8,14 +8,12 @@ struct CaskyApp: App {
         Window("casky", id: "main") {
             RootView()
                 .environment(model)
-                .tint(.purple)
                 .frame(minWidth: 820, minHeight: 520)
         }
         .defaultSize(width: 1280, height: 820)
         Settings {
             SettingsView()
                 .environment(model)
-                .tint(.purple)
         }
         .commands {
             CommandGroup(replacing: .newItem) {
