@@ -21,6 +21,9 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230)
         } detail: {
             detail
+                // Fill the column so the bar sits at the window's bottom even
+                // when the content (an empty state) is short.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if !model.selection.isEmpty {
                         SelectionBar { destination = .selection }
