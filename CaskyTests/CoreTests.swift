@@ -538,3 +538,14 @@ import Testing
         #expect(plan.steps.map(\.action.name) == ["visual-studio-code", "git", "X"])
     }
 }
+
+@Suite struct AppStoreChartTests {
+    @Test func readsChartIDsInOrder() throws {
+        let json = Data(#"""
+        {"feed": {"entry": [{"id": {"label": "https://apps.apple.com/app/id2", "attributes": {"im:id": "2"}}},
+                            {"id": {"label": "https://apps.apple.com/app/id1", "attributes": {"im:id": "1"}}}]}}
+        """#.utf8)
+        #expect(try AppStoreSearch.chartIDs(json) == [2, 1])
+        #expect(AppStoreSearch.lookupURL(ids: [2, 1]).absoluteString.hasSuffix("lookup?id=2,1"))
+    }
+}

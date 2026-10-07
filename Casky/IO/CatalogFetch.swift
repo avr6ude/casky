@@ -44,6 +44,18 @@ struct CatalogFetch: Sendable {
         return Catalog(entries: entries)
     }
 
+    /// Today's top free Mac apps, with full details.
+    func topAppStoreApps() async throws -> [CatalogEntry] {
+        let ids = try AppStoreSearch.chartIDs(try await download(AppStoreSearch.topFreeURL))
+        guard !ids.isEmpty else { return [] }
+        let apps = try AppStoreSearch.decode(try await download(AppStoreSearch.lookupURL(ids: ids)))
+        let order = Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return apps.sorted { app, other in
+            guard case .mas(let a, _) = app.item, case .mas(let b, _) = other.item else { return false }
+            return (order[a] ?? .max) < (order[b] ?? .max)
+        }
+    }
+
     func searchAppStore(_ term: String) async throws -> [CatalogEntry] {
         try AppStoreSearch.decode(try await download(AppStoreSearch.url(for: term)))
     }

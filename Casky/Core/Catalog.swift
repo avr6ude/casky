@@ -206,6 +206,32 @@ enum AppStoreSearch {
         return components.url!
     }
 
+    /// Apple's chart of top free Mac apps.
+    static let topFreeURL = URL(string: "https://itunes.apple.com/us/rss/topfreemacapps/limit=50/json")!
+
+    /// Ids from the chart feed, in chart order.
+    static func chartIDs(_ data: Data) throws -> [Int] {
+        try JSONDecoder().decode(Chart.self, from: data).feed.entry.compactMap { Int($0.id.attributes.id) }
+    }
+
+    /// One lookup for many ids; results come back in the search format.
+    static func lookupURL(ids: [Int]) -> URL {
+        URL(string: "https://itunes.apple.com/lookup?id=\(ids.map(String.init).joined(separator: ","))")!
+    }
+
+    private struct Chart: Decodable {
+        let feed: Feed
+        struct Feed: Decodable { let entry: [Entry] }
+        struct Entry: Decodable { let id: ID }
+        struct ID: Decodable {
+            let attributes: Attributes
+            struct Attributes: Decodable {
+                let id: String
+                enum CodingKeys: String, CodingKey { case id = "im:id" }
+            }
+        }
+    }
+
     /// Keeps Mac apps only: the API also returns iPad apps for `macSoftware`
     /// queries, which `mas` cannot install.
     static func decode(_ data: Data) throws -> [CatalogEntry] {

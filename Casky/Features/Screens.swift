@@ -245,12 +245,8 @@ struct SearchResults: View {
     }
 
     @ViewBuilder private var content: some View {
-        if kind == .mas, term.isEmpty {
-            ContentUnavailableView(
-                "Search the App Store",
-                systemImage: Item.Kind.mas.symbol,
-                description: Text("casky installs free App Store apps and apps you've already bought with your Apple Account.")
-            )
+        if kind == .mas, term.isEmpty, appStoreResults.isEmpty, appStoreError == nil {
+            ProgressView("Loading top apps…").frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let appStoreError, results.isEmpty, !isSearching {
             ContentUnavailableView {
                 Label("Couldn't search the App Store", systemImage: "wifi.exclamationmark")
@@ -263,6 +259,14 @@ struct SearchResults: View {
             ContentUnavailableView.search(text: query)
         } else {
             VStack(spacing: 0) {
+                if kind == .mas, term.isEmpty {
+                    Text("Top free Mac apps today")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                    Divider()
+                }
                 if let appStoreError {
                     Label("App Store results are missing: \(appStoreError)", systemImage: "wifi.exclamationmark")
                         .font(.callout)
@@ -296,8 +300,20 @@ struct SearchResults: View {
         }
         guard includesAppStore else { return }
         guard !term.isEmpty else {
-            appStoreResults = []
-            appStoreError = nil
+            // Searching everything with no query lists Homebrew's catalog;
+            // the App Store section opens on today's chart instead.
+            if kind == .mas {
+                do {
+                    appStoreResults = try await model.topAppStore()
+                    appStoreError = nil
+                } catch is CancellationError {
+                } catch {
+                    appStoreError = AppModel.describe(error)
+                }
+            } else {
+                appStoreResults = []
+                appStoreError = nil
+            }
             return
         }
         // Wait for typing to pause before hitting the network.

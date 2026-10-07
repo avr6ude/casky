@@ -250,6 +250,17 @@ final class AppModel {
         kit.items.compactMap(entry(for:))
     }
 
+    private var topAppStoreApps: [CatalogEntry]?
+
+    /// Fetched once per launch.
+    func topAppStore() async throws -> [CatalogEntry] {
+        if let topAppStoreApps { return topAppStoreApps }
+        let apps = try await fetch.topAppStoreApps()
+        for entry in apps { appStoreEntries[entry.item] = entry }
+        topAppStoreApps = apps
+        return apps
+    }
+
     func searchAppStore(_ term: String) async throws -> [CatalogEntry] {
         let key = term.trimmingCharacters(in: .whitespaces).lowercased()
         if let cached = appStoreQueries[key] { return cached }
