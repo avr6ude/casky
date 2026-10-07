@@ -15,8 +15,28 @@ struct KitView: View {
 struct SetupView: View {
     @Environment(AppModel.self) private var model
     let setup: SavedSetup
+    @State private var showsDotfiles = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("Setup content", selection: $showsDotfiles) {
+                Text("Apps & Tools").tag(false)
+                Text("Dotfiles").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 260)
+            .padding(.top, 16)
+            if showsDotfiles {
+                DotfilesView(setup: setup).id(setup.id)
+            } else {
+                packages
+            }
+        }
+        .navigationTitle(setup.name)
+    }
+
+    private var packages: some View {
         CollectionView(
             symbol: "square.stack",
             title: setup.name,
@@ -26,6 +46,7 @@ struct SetupView: View {
             Menu {
                 Button("Rename…") { model.namePrompt = .rename(setup) }
                 Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
+                Button("Configure Dotfiles…") { showsDotfiles = true }
                 Divider()
                 Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
             } label: {
@@ -34,7 +55,6 @@ struct SetupView: View {
             .menuIndicator(.hidden)
             .fixedSize()
         }
-        .navigationTitle(setup.name)
     }
 }
 

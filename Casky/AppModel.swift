@@ -83,6 +83,8 @@ final class AppModel {
     private let setupsFile: JSONFile<[SavedSetup]>
     private let tapsFile: JSONFile<[TapListing]>
     private let historyFile: JSONFile<[RunRecord]>
+    let dotfilesDirectory: URL
+    let dotfilesBackupsDirectory: URL
     /// App Store results seen so far, so selected App Store items keep their
     /// details. Bounded by what the user searched for.
     private var appStoreEntries: [Item: CatalogEntry] = [:]
@@ -102,6 +104,8 @@ final class AppModel {
         setupsFile = JSONFile(file: dataDirectory.appending(path: "setups.json"))
         tapsFile = JSONFile(file: dataDirectory.appending(path: "taps.json"))
         historyFile = JSONFile(file: dataDirectory.appending(path: "history.json"))
+        dotfilesDirectory = dataDirectory.appending(path: "dotfiles")
+        dotfilesBackupsDirectory = dataDirectory.appending(path: "dotfile-backups")
         self.defaults = defaults
         self.locateHomebrew = locateHomebrew
         self.applicationFolders = applicationFolders
@@ -338,6 +342,17 @@ final class AppModel {
     func deleteSetup(_ id: SavedSetup.ID) {
         setups.removeAll { $0.id == id }
         persistSetups()
+    }
+
+    func saveDotfiles(_ configuration: DotfilesConfiguration?, for id: SavedSetup.ID) throws {
+        if let setupsLoadError { throw DotfilesError.invalid(setupsLoadError) }
+        guard let index = setups.firstIndex(where: { $0.id == id }) else {
+            throw DotfilesError.invalid("This setup no longer exists.")
+        }
+        var updated = setups
+        updated[index].dotfiles = try configuration?.validated()
+        try setupsFile.save(updated)
+        setups = updated
     }
 
     private func persistSetups() {

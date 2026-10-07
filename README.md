@@ -3,6 +3,7 @@
 A native macOS app for setting up a Mac: pick a kit or search, then install apps (Homebrew casks), command-line tools (formulae) and Mac App Store apps in one go. Homebrew and [`mas`](https://github.com/mas-cli/mas) do the installing; casky is the friendly layer on top.
 
 - Kits, saved setups, and "Save This Mac" snapshots
+- Dotfiles in saved setups: load a Git repository, choose files or folders, and preview a link or copy restore with backups
 - Brewfile export and import (import reads plain entries only and never executes the file)
 - Shows what's already installed; installs one item at a time with live output, Stop and Retry
 - Asks for your Mac password in a native dialog only when an install needs it
@@ -30,6 +31,14 @@ scripts/release.sh --unsigned             # local dry run
 Then update `packaging/casky.rb` with the new version and SHA-256 and copy it to the tap.
 
 The retired web app lives in `legacy-web/` (gitignored) for reference.
+
+## Dotfiles
+
+Open a saved setup and select **Dotfiles**. Enter an HTTPS or SSH Git URL (optionally a branch or tag), or choose a local Git repository. Load it, add files or folders, and set their destinations relative to your home folder, such as `.zshrc` or `.config/nvim`.
+
+**Link** points to the repository copy Casky keeps on this Mac; **Copy** makes an independent copy. **Preview Restore** saves the configuration and shows what will be created, replaced, or skipped. **Restore** applies those changes. Replaced originals are kept under `~/Library/Application Support/casky/dotfile-backups/`; the result offers **Show Backups**. Folder restores replace the entire folder, rather than merging it.
+
+Repository scripts are never run. Source symlinks, Git submodules and destinations inside linked folders are rejected. SSH uses existing keys without an interactive password prompt. Refreshing reuses a clean checkout of the same revision; new revisions or local edits get a separate checkout so existing links keep their contents until you restore again. Checkouts are retained under `~/Library/Application Support/casky/dotfiles/`.
 
 ## License
 
