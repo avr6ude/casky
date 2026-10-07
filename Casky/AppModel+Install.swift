@@ -12,25 +12,48 @@ extension AppModel {
         )
     }
 
+    enum RunKind: Sendable {
+        case install([Item])
+        case update([Item])
+    }
+
     /// Installs `items` (the selection by default) one step at a time.
-    /// Retrying is the same call: whatever installed last time drops out.
     func install(_ items: [Item]? = nil) async {
+        await perform(.install(items ?? selection))
+    }
+
+    /// Updates `items` that have an update available.
+    func update(_ items: [Item]) async {
+        await perform(.update(items))
+    }
+
+    /// Runs the last install or update again; whatever finished last time
+    /// is installed or current now and drops out.
+    func retryLastRun() async {
+        if let lastRun { await perform(lastRun) }
+    }
+
+    private func perform(_ kind: RunKind) async {
         guard !isInstalling, let homebrew else { return }
         isInstalling = true
         defer { isInstalling = false }
 
-        let items = items ?? selection
-        runItems = items
-        await refreshInstalled()
-        run = RunState(plan: previewPlan(for: items))
+        lastRun = kind
         runNote = nil
         currentOutput = []
-
         do {
             _ = try await homebrew.run(["update"])
         } catch {
-            // Not fatal: installs use the formula data Homebrew already has.
+            // Not fatal: Homebrew works with the package data it already has.
             runNote = "Couldn't update Homebrew first: \(Self.describe(error))"
+        }
+        await refreshInstalled()
+        switch kind {
+        case .install(let items):
+            run = RunState(plan: previewPlan(for: items))
+        case .update(let items):
+            await refreshUpdates()
+            run = RunState(plan: InstallPlan(updates: items.compactMap { updates[$0] }))
         }
 
         while let step = run?.nextStep() {
@@ -41,6 +64,7 @@ extension AppModel {
         }
         if let run { record(run) }
         await refreshInstalled()
+        await refreshUpdates()
     }
 
     func stopAfterCurrentStep() {
@@ -55,10 +79,9 @@ extension AppModel {
 
     private func execute(_ step: InstallStep, with homebrew: Homebrew) async -> RunState.Outcome {
         let (lines, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(1000))
-        let name = Self.itemName(step.action)
         let task = Task.detached {
             defer { continuation.finish() }
-            return try await homebrew.execute(step.action, itemName: name) { continuation.yield($0) }
+            return try await homebrew.execute(step.action) { continuation.yield($0) }
         }
         for await line in lines {
             currentOutput.append(line)
@@ -71,14 +94,6 @@ extension AppModel {
             return .failed(status: status, output: Array(currentOutput.suffix(50)))
         case .failure(let error):
             return .failed(status: -1, output: [Self.describe(error)])
-        }
-    }
-
-    static func itemName(_ action: InstallStep.Action) -> String {
-        switch action {
-        case .tap(let tap): tap
-        case .install(.formula(let ref)), .install(.cask(let ref)): ref.name
-        case .install(.mas(_, let name)): name
         }
     }
 }

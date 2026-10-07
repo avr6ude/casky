@@ -5,6 +5,26 @@ struct InstallStep: Hashable, Sendable {
     enum Action: Hashable, Sendable {
         case tap(String)
         case install(Item)
+        /// Upgrade in place (Homebrew manages it).
+        case update(Item)
+        /// Have Homebrew replace a copy it doesn't manage with its newer one.
+        case replace(Item)
+
+        /// Short name for messages: the tap, or the formula/cask/app name.
+        var name: String {
+            switch item {
+            case .formula(let ref), .cask(let ref): ref.name
+            case .mas(_, let name): name
+            case nil: if case .tap(let tap) = self { tap } else { "" }
+            }
+        }
+
+        var item: Item? {
+            switch self {
+            case .tap: nil
+            case .install(let item), .update(let item), .replace(let item): item
+            }
+        }
     }
 
     let action: Action
@@ -21,6 +41,14 @@ struct InstallPlan: Sendable {
     let steps: [InstallStep]
     /// Selected items skipped because they are already installed.
     let alreadyInstalled: [Item]
+
+    /// Updating: one step per update, App Store apps last (they may ask for
+    /// the password). Taps and `mas` are already there.
+    init(updates: [AvailableUpdate]) {
+        let ordered = updates.filter { $0.item.kind != .mas } + updates.filter { $0.item.kind == .mas }
+        steps = ordered.map { InstallStep(action: $0.managed ? .update($0.item) : .replace($0.item), prerequisites: []) }
+        alreadyInstalled = []
+    }
 
     /// - Parameter appBundles: the `.app` each selected app installs, so apps
     ///   already in an Applications folder are skipped too.

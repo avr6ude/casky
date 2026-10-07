@@ -5,6 +5,7 @@ enum Destination: Hashable {
     case home
     case selection
     case history
+    case updates
     case browse(Item.Kind)
     case kit(String)
     case setup(UUID)
@@ -57,6 +58,8 @@ struct RootView: View {
             SelectionView()
         case .history:
             HistoryView()
+        case .updates:
+            UpdatesView()
         case .browse(let kind):
             BrowseView(kind: kind).id(kind)
         case .kit(let slug):
@@ -89,6 +92,9 @@ private struct Sidebar: View {
             Label("Selected", systemImage: "checklist")
                 .badge(model.selection.count)
                 .tag(Destination.selection)
+            Label("Updates", systemImage: "arrow.down.circle")
+                .badge(model.updates.count)
+                .tag(Destination.updates)
             Label("History", systemImage: "clock.arrow.circlepath").tag(Destination.history)
 
             Section("Browse") {

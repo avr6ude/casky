@@ -8,7 +8,7 @@
 exec /usr/bin/osascript - "${CASKY_ASKPASS_ITEM:-this item}" <<'APPLESCRIPT'
 on run argv
     set itemName to item 1 of argv
-    set reply to display dialog "casky needs your Mac password to install " & itemName & "." default answer "" with hidden answer with title "casky" with icon caution buttons {"Cancel", "Install"} default button "Install" cancel button "Cancel"
+    set reply to display dialog "casky needs your Mac password to install or update " & itemName & "." default answer "" with hidden answer with title "casky" with icon caution buttons {"Cancel", "Install"} default button "Install" cancel button "Cancel"
     return text returned of reply
 end run
 APPLESCRIPT

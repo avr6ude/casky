@@ -53,11 +53,23 @@ struct Homebrew: Sendable {
         return try await ToolRunner.run(mas, arguments: arguments, environment: environment())
     }
 
+    /// `mas get` and `mas update` need root; they go through `sudo -A` and
+    /// the same password helper Homebrew uses.
+    private func runMasAsRoot(_ arguments: [String], environment: [String: String], onLine: @escaping @Sendable (String) -> Void) async throws -> Int32 {
+        guard let mas = masExecutable else { throw ToolError.missing("mas") }
+        return try await ToolRunner.stream(URL(fileURLWithPath: "/usr/bin/sudo"), arguments: ["-A", mas.path] + arguments, environment: environment, onLine: onLine)
+    }
+
+    /// `brew outdated --greedy --json=v2`, including apps that update themselves.
+    func outdated() async throws -> Data {
+        try await run(["outdated", "--greedy", "--json=v2"])
+    }
+
     /// Runs one plan step, streaming its output, and returns the exit status.
     /// App Store installs need root (`mas get` refuses otherwise), so they go
     /// through `sudo -A` and the same password helper Homebrew uses.
-    func execute(_ action: InstallStep.Action, itemName: String, onLine: @escaping @Sendable (String) -> Void) async throws -> Int32 {
-        let environment = environment(askpassItem: itemName)
+    func execute(_ action: InstallStep.Action, onLine: @escaping @Sendable (String) -> Void) async throws -> Int32 {
+        let environment = environment(askpassItem: action.name)
         switch action {
         case .tap(let tap):
             return try await ToolRunner.stream(executable, arguments: ["tap", tap], environment: environment, onLine: onLine)
@@ -66,11 +78,17 @@ struct Homebrew: Sendable {
         case .install(.cask(let ref)):
             return try await ToolRunner.stream(executable, arguments: ["install", "--cask", ref.fullName], environment: environment, onLine: onLine)
         case .install(.mas(let id, _)):
-            guard let mas = masExecutable else { throw ToolError.missing("mas") }
-            return try await ToolRunner.stream(
-                URL(fileURLWithPath: "/usr/bin/sudo"), arguments: ["-A", mas.path, "get", String(id)],
-                environment: environment, onLine: onLine
-            )
+            return try await runMasAsRoot(["get", String(id)], environment: environment, onLine: onLine)
+        case .update(.formula(let ref)), .replace(.formula(let ref)):
+            return try await ToolRunner.stream(executable, arguments: ["upgrade", ref.fullName], environment: environment, onLine: onLine)
+        case .update(.cask(let ref)):
+            // --greedy: casks that update themselves are skipped otherwise.
+            return try await ToolRunner.stream(executable, arguments: ["upgrade", "--cask", "--greedy", ref.fullName], environment: environment, onLine: onLine)
+        case .replace(.cask(let ref)):
+            // The app wasn't installed by Homebrew; --force lets it replace it.
+            return try await ToolRunner.stream(executable, arguments: ["install", "--cask", "--force", ref.fullName], environment: environment, onLine: onLine)
+        case .update(.mas(let id, _)), .replace(.mas(let id, _)):
+            return try await runMasAsRoot(["update", String(id)], environment: environment, onLine: onLine)
         }
     }
 

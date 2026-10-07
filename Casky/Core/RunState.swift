@@ -39,7 +39,7 @@ struct RunState: Sendable {
             if stopRequested {
                 outcomes[step.action] = .skipped(reason: "Stopped")
             } else if let blocker = step.prerequisites.first(where: { outcomes[$0] != .installed }) {
-                outcomes[step.action] = .skipped(reason: "\(Self.describe(blocker)) didn't install")
+                outcomes[step.action] = .skipped(reason: "\(blocker.name) didn't install")
             } else {
                 current = step
                 return step
@@ -56,13 +56,5 @@ struct RunState: Sendable {
 
     mutating func requestStop() {
         stopRequested = true
-    }
-
-    private static func describe(_ action: InstallStep.Action) -> String {
-        switch action {
-        case .tap(let tap): tap
-        case .install(.formula(let ref)), .install(.cask(let ref)): ref.name
-        case .install(.mas(_, let name)): name
-        }
     }
 }

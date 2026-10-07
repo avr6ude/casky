@@ -58,9 +58,17 @@ struct Pill: View {
     }
 
     static let installed = Pill(text: "Installed", symbol: "checkmark", tint: .green)
+    static let update = Pill(text: "Update", symbol: "arrow.down", tint: .accentColor)
 
     /// What installing an item that needs admin rights will do.
     static func approval(touchID: Bool) -> Pill {
         touchID ? Pill(text: "Asks for Touch ID", symbol: "touchid") : Pill(text: "Asks for password", symbol: "key.fill")
+    }
+}
+
+extension AvailableUpdate {
+    /// "4.44.3 → 4.94.0", without Homebrew's build suffix.
+    var versions: String {
+        "\(installed) → \(latest.split(separator: ",").first.map(String.init) ?? latest)"
     }
 }

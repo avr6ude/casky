@@ -9,6 +9,24 @@ enum LocalApp {
             .first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    /// Apps installed outside Homebrew whose version is older than the
+    /// catalog's. When several casks install the same app, the most popular
+    /// one is the match.
+    static func unmanagedUpdates(in entries: [CatalogEntry], installed: InstalledState) -> [AvailableUpdate] {
+        var byBundle: [String: CatalogEntry] = [:]
+        for entry in entries {
+            guard case .cask = entry.item, !installed.contains(entry.item),
+                  let bundle = entry.appBundleName?.lowercased(), installed.appBundles.contains(bundle) else { continue }
+            if byBundle[bundle].map({ $0.installs < entry.installs }) ?? true { byBundle[bundle] = entry }
+        }
+        return byBundle.values.compactMap { entry in
+            guard let latest = entry.version, let bundle = entry.appBundleName, let app = location(of: bundle),
+                  let current = Bundle(url: app)?.infoDictionary?["CFBundleShortVersionString"] as? String,
+                  Updates.isNewer(latest, than: current) else { return nil }
+            return AvailableUpdate(item: entry.item, installed: current, latest: latest, managed: false)
+        }
+    }
+
     static func facts(for app: URL) async -> [AppDetails.Fact] {
         let bundle = Bundle(url: app)
         let info = bundle?.infoDictionary ?? [:]

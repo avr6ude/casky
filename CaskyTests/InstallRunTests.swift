@@ -18,6 +18,8 @@ import Testing
           --version) echo "Homebrew 7.0.8" ;;
           info) echo '{"formulae": [], "casks": [{"full_token": "present"}]}' ;;
           tap-info) echo '[]' ;;
+          outdated) echo '{"formulae": [], "casks": [{"name": "present", "installed_versions": ["1.0"], "current_version": "2.0"}]}' ;;
+          upgrade) echo "==> Upgrading $*" ;;
           tap) echo "==> Tapping $2" ;;
           install)
             shift
@@ -65,6 +67,20 @@ import Testing
         let record = try #require(self.model(try fakeBrew()).history.first)
         #expect(record.installedCount == 3 && record.failedCount == 1 && record.alreadyInstalled == 1)
         #expect(record.steps.map(\.title) == ["x/y", "tool", "good", "bad"])
+    }
+
+    @Test func updatesComeFromHomebrewAndRun() async throws {
+        let model = model(try fakeBrew())
+        let present = Item.cask(try Ref(parsing: "present"))
+        await model.refreshInstalled()
+        await model.refreshUpdates()
+        #expect(model.updates[present]?.versions == "1.0 → 2.0")
+
+        await model.update([present])
+        let run = try #require(model.run)
+        #expect(run.plan.steps.map(\.action) == [.update(present)])
+        #expect(run.outcomes[.update(present)] == .installed)
+        #expect(model.history.first?.steps.map(\.title) == ["present"])
     }
 
     @Test func settingsAcceptOnlyHomebrew() async throws {

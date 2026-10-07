@@ -51,7 +51,11 @@ struct AppPreview: View {
                         .foregroundStyle(.secondary)
                 }
                 HStack(spacing: 8) {
-                    if model.isInstalled(entry.item) { Pill.installed }
+                    if let update = model.updates[entry.item] {
+                        Pill(text: "Update \(update.versions)", symbol: "arrow.down", tint: .accentColor)
+                    } else if model.isInstalled(entry.item) {
+                        Pill.installed
+                    }
                     if entry.needsAdmin { Pill.approval(touchID: model.touchIDForAdmin) }
                     Text("\(entry.item.kind.label) · \(entry.item.technicalName)")
                         .font(.callout)
@@ -134,7 +138,16 @@ struct AppPreview: View {
             Button(model.isSelected(entry.item) ? "Remove from Selection" : "Add to Selection") {
                 model.toggle(entry.item)
             }
-            if !model.isInstalled(entry.item) {
+            if let update = model.updates[entry.item] {
+                Button(update.managed ? "Update" : "Update with Homebrew") {
+                    let item = entry.item
+                    dismiss()
+                    Task { await model.update([item]) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.isInstalling)
+                .help(update.managed ? "" : "This copy wasn't installed with Homebrew. Homebrew replaces it with \(update.latest) and keeps it updated from then on.")
+            } else if !model.isInstalled(entry.item) {
                 Button("Install") {
                     let item = entry.item
                     dismiss()

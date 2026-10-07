@@ -495,3 +495,46 @@ import Testing
         #expect(AppPreview.balance([]).map(\.count) == [0, 0])
     }
 }
+
+@Suite struct UpdatesTests {
+    @Test(arguments: [
+        ("4.94.0,241994", "4.44.3", true),
+        ("4.44.3", "4.44.3", false),
+        ("1.10", "1.9", true),
+        ("1.9", "1.10", false),
+        ("7.2.2.88465", "7.2.2 (88465)", false),
+        ("2.0", "2.0.0", false),
+        ("2.0.1", "2.0", true),
+        ("1.0b2", "1.0b1", true),
+        ("latest", "1.0", false),
+        ("", "1.0", false),
+    ])
+    func comparesVersions(_ latest: String, _ installed: String, _ newer: Bool) {
+        #expect(Updates.isNewer(latest, than: installed) == newer)
+    }
+
+    @Test func decodesOutdatedKeepingRequestedFormulae() throws {
+        let json = Data(#"""
+        {"formulae": [{"name": "git", "installed_versions": ["2.39.0"], "current_version": "2.51.0", "pinned": false},
+                      {"name": "abseil", "installed_versions": ["2024"], "current_version": "2026", "pinned": false}],
+         "casks": [{"name": "docker-desktop", "installed_versions": ["4.44.3,202357"], "current_version": "4.94.0,241994"}]}
+        """#.utf8)
+        let updates = try Updates.decodeOutdated(json, requestedFormulae: ["git"])
+        #expect(updates.map(\.item) == [.formula(try Ref(parsing: "git")), .cask(try Ref(parsing: "docker-desktop"))])
+        #expect(updates.allSatisfy { $0.managed })
+        #expect(updates[1].versions == "4.44.3,202357 → 4.94.0")
+    }
+
+    @Test func updatePlanUsesUpgradeOrReplaceAndPutsAppStoreLast() throws {
+        let app = Item.mas(id: 1, name: "X")
+        let code = Item.cask(try Ref(parsing: "visual-studio-code"))
+        let git = Item.formula(try Ref(parsing: "git"))
+        let plan = InstallPlan(updates: [
+            AvailableUpdate(item: app, installed: "1", latest: "2", managed: true),
+            AvailableUpdate(item: code, installed: "1.100", latest: "1.140", managed: false),
+            AvailableUpdate(item: git, installed: "2.39", latest: "2.51", managed: true),
+        ])
+        #expect(plan.steps.map(\.action) == [.replace(code), .update(git), .update(app)])
+        #expect(plan.steps.map(\.action.name) == ["visual-studio-code", "git", "X"])
+    }
+}

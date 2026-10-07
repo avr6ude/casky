@@ -7,6 +7,8 @@ import SwiftUI
 struct ItemList: View {
     @Environment(AppModel.self) private var model
     let entries: [CatalogEntry]
+    /// Show "1.0 → 2.0" on update pills instead of "Update".
+    var showsUpdateVersions = false
     /// Called when the last row scrolls into view, to load more.
     var onReachEnd: (() -> Void)?
     @State private var highlighted = Set<Item>()
@@ -19,6 +21,8 @@ struct ItemList: View {
                     isSelected: model.isSelected(entry.item),
                     isInstalled: model.isInstalled(entry.item),
                     isManaged: model.isManaged(entry.item),
+                    update: model.updates[entry.item],
+                    showsUpdateVersions: showsUpdateVersions,
                     touchID: model.touchIDForAdmin,
                     preview: { model.previewEntry = entry }
                 ) {
@@ -52,6 +56,13 @@ struct ItemList: View {
                 }
                 .disabled(model.isInstalling || model.homebrew == nil)
             }
+            let outdated = items.filter { model.updates[$0] != nil }
+            if !outdated.isEmpty {
+                Button(outdated.count == 1 ? "Update Now" : "Update \(outdated.count) Now") {
+                    Task { await model.update(outdated) }
+                }
+                .disabled(model.isInstalling)
+            }
             Button(items.allSatisfy(model.isSelected) ? "Remove from Selection" : "Add to Selection") {
                 model.toggleAll(items)
             }
@@ -77,6 +88,8 @@ struct ItemRow: View {
     let isSelected: Bool
     let isInstalled: Bool
     var isManaged = true
+    var update: AvailableUpdate?
+    var showsUpdateVersions = false
     var touchID = false
     var preview: (() -> Void)?
     let toggle: () -> Void
@@ -113,7 +126,12 @@ struct ItemRow: View {
 
             Spacer(minLength: 16)
 
-            if isInstalled {
+            if let update {
+                (showsUpdateVersions ? Pill(text: update.versions, symbol: "arrow.down", tint: .accentColor) : Pill.update)
+                    .help(update.managed
+                          ? "Update available: \(update.versions)"
+                          : "Update available: \(update.versions). Installed outside Homebrew; updating lets Homebrew replace and manage it.")
+            } else if isInstalled {
                 Pill.installed
                     .help(isManaged ? "Installed with Homebrew" : "Installed outside Homebrew, so casky leaves it alone")
             }

@@ -63,8 +63,13 @@ final class AppModel {
     var currentOutput: [String] = []
     /// A non-fatal problem during the run (e.g. `brew update` failed).
     var runNote: String?
-    /// What the current or last run was asked to install, for Retry.
-    var runItems: [Item] = []
+    /// What the current or last run was asked to do, for Retry.
+    var lastRun: RunKind?
+
+    /// Newer versions of what's on this Mac, by item.
+    private(set) var updates: [Item: AvailableUpdate] = [:]
+    private(set) var isCheckingUpdates = false
+    private(set) var updatesError: String?
     /// The item shown in the Quick Look-style preview.
     var previewEntry: CatalogEntry?
     /// Whether admin prompts use Touch ID (Settings > Admin Prompts).
@@ -138,6 +143,7 @@ final class AppModel {
             await refreshCatalog()
         }
         await installed
+        await refreshUpdates()
     }
 
     func refreshCatalog() async {
@@ -176,6 +182,28 @@ final class AppModel {
             installed.appBundles = bundles
             installedError = Self.describe(error)
         }
+    }
+
+    /// Asks Homebrew what it would upgrade (`outdated --greedy`, so apps that
+    /// update themselves count too), and compares apps installed some other
+    /// way with the catalog's latest version.
+    func refreshUpdates() async {
+        guard let homebrew, !isCheckingUpdates else { return }
+        isCheckingUpdates = true
+        defer { isCheckingUpdates = false }
+
+        var found: [AvailableUpdate] = []
+        do {
+            found = try Updates.decodeOutdated(try await homebrew.outdated(), requestedFormulae: installed.requestedFormulae)
+            updatesError = nil
+        } catch {
+            updatesError = Self.describe(error)
+        }
+        if let catalog {
+            let installed = installed
+            found += await Task.detached { LocalApp.unmanagedUpdates(in: catalog.entries, installed: installed) }.value
+        }
+        updates = Dictionary(found.map { ($0.item, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     func isInstalled(_ item: Item) -> Bool {
@@ -320,7 +348,7 @@ final class AppModel {
     func record(_ run: RunState) {
         guard !run.plan.steps.isEmpty else { return }
         let record = RunRecord(run: run, date: .now) { action in
-            if case .install(let item) = action { displayEntry(for: item).title } else { Self.itemName(action) }
+            action.item.map { displayEntry(for: $0).title } ?? action.name
         }
         history = RunRecord.appending(record, to: history)
         guard historyLoadError == nil else { return }

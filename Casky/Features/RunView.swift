@@ -62,7 +62,7 @@ struct RunView: View {
                     .disabled(run.stopRequested)
             } else {
                 if run.failedCount > 0 || run.stopRequested {
-                    Button("Retry Unfinished") { Task { await model.install(model.runItems) } }
+                    Button("Retry Unfinished") { Task { await model.retryLastRun() } }
                 }
                 Button("Done") { model.dismissRun() }
                     .keyboardShortcut(.defaultAction)
@@ -94,7 +94,7 @@ private struct StepRow: View {
                 ConsoleView(lines: model.currentOutput, height: 200)
             }
             if case .failed(_, let output) = outcome {
-                if case .install(.mas(let id, _)) = step.action {
+                if case .mas(let id, _) = step.action.item {
                     // Paid apps not yet bought, or App Store sign-in, need the App Store itself.
                     Button("Open in App Store") {
                         if let url = URL(string: "macappstore://apps.apple.com/app/id\(id)") {
@@ -118,6 +118,7 @@ private struct StepRow: View {
         switch step.action {
         case .tap(let tap): "Add tap \(tap)"
         case .install(let item): model.displayEntry(for: item).title
+        case .update(let item), .replace(let item): "Update \(model.displayEntry(for: item).title)"
         }
     }
 

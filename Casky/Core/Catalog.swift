@@ -14,6 +14,9 @@ struct CatalogEntry: Codable, Hashable, Identifiable, Sendable {
     var appBundleName: String? = nil
     /// Artwork published with the item (App Store apps).
     var iconURL: URL? = nil
+    /// Latest version Homebrew offers (casks), for spotting updates of apps
+    /// installed outside Homebrew.
+    var version: String? = nil
 
     var id: Item { item }
 }
@@ -105,7 +108,8 @@ extension Catalog {
                 homepage: raw.homepage.flatMap(URL.init(string:)),
                 installs: caskCounts[raw.token] ?? 0,
                 needsAdmin: raw.artifacts.contains { !$0.keys.isDisjoint(with: ["pkg", "installer"]) },
-                appBundleName: raw.artifacts.lazy.compactMap(\.appName).first
+                appBundleName: raw.artifacts.lazy.compactMap(\.appName).first,
+                version: raw.version
             )
         }
         return formulaEntries + caskEntries
@@ -121,6 +125,7 @@ extension Catalog {
 
     private struct RawCask: Decodable {
         let token: String
+        let version: String?
         let name: [String]?
         let desc: String?
         let homepage: String?
