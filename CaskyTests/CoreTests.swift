@@ -146,7 +146,8 @@ import Testing
     @Test func bundledKitsDecode() throws {
         let url = try #require(Bundle.main.url(forResource: "kits", withExtension: "json"))
         let kits = try JSONDecoder().decode([Kit].self, from: Data(contentsOf: url))
-        #expect(kits.count == 16)
+        #expect(kits.count == 17)
+        #expect(kits.allSatisfy { !$0.title.localizedCaseInsensitiveContains("kit") })
         #expect(Set(kits.map(\.slug)).count == kits.count)
         #expect(kits.allSatisfy { !$0.items.isEmpty && $0.items.count == $0.items.uniqued().count })
     }

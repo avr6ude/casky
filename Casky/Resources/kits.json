@@ -2,264 +2,284 @@
   {
     "slug": "essentials",
     "symbol": "sparkles",
-    "title": "New Mac essentials",
-    "summary": "What you install first on a fresh Mac.",
+    "title": "Essentials",
+    "summary": "The first things worth installing on a new Mac.",
     "items": [
-      {"cask": "google-chrome"},
       {"cask": "firefox"},
-      {"cask": "1password"},
-      {"cask": "the-unarchiver"},
-      {"cask": "rectangle"},
       {"cask": "raycast"},
-      {"cask": "iina"},
+      {"cask": "rectangle"},
+      {"cask": "the-unarchiver"},
       {"cask": "appcleaner"},
+      {"cask": "maccy"},
+      {"cask": "iina"},
       {"cask": "stats"},
-      {"cask": "maccy"}
+      {"cask": "1password"},
+      {"cask": "alt-tab"},
+      {"mas": {"id": 937984704, "name": "Amphetamine"}}
     ]
   },
   {
-    "slug": "dev",
+    "slug": "developer",
     "symbol": "chevron.left.forwardslash.chevron.right",
-    "title": "Developer kit",
-    "summary": "Battle-tested dev environment.",
+    "title": "Developer",
+    "summary": "Editors, terminals, containers and the CLI basics.",
     "items": [
-      {"cask": "warp"},
       {"cask": "visual-studio-code"},
       {"cask": "cursor"},
+      {"cask": "ghostty"},
       {"cask": "orbstack"},
-      {"cask": "bruno"},
       {"cask": "tableplus"},
       {"cask": "fork"},
-      {"cask": "raycast"},
-      {"cask": "rectangle"},
-      {"cask": "ghostty"},
-      {"cask": "ngrok"},
-      {"cask": "github"},
+      {"cask": "proxyman"},
+      {"cask": "bruno"},
       {"formula": "git"},
       {"formula": "gh"},
       {"formula": "node"},
+      {"formula": "pnpm"},
+      {"formula": "uv"},
       {"formula": "jq"},
+      {"formula": "ripgrep"},
+      {"formula": "fzf"},
+      {"formula": "mise"},
       {"mas": {"id": 497799835, "name": "Xcode"}}
     ]
   },
   {
     "slug": "ai",
     "symbol": "brain",
-    "title": "AI workstation",
-    "summary": "Local LLMs, AI editors, agent tooling.",
+    "title": "AI",
+    "summary": "Assistants, coding agents and local models.",
     "items": [
+      {"cask": "claude"},
+      {"cask": "chatgpt"},
+      {"cask": "claude-code"},
+      {"cask": "codex"},
       {"cask": "ollama-app"},
       {"cask": "lm-studio"},
-      {"cask": "mstystudio"},
-      {"cask": "jan"},
+      {"cask": "superwhisper"},
       {"cask": "cursor"},
-      {"cask": "claude"},
-      {"cask": "claude-code"},
-      {"cask": "raycast"},
-      {"cask": "warp"}
+      {"formula": "llm"}
     ]
   },
   {
-    "slug": "designer",
+    "slug": "design",
     "symbol": "paintpalette",
-    "title": "Designer kit",
-    "summary": "Tools for a working designer Mac.",
+    "title": "Design",
+    "summary": "Interface design, illustration, 3D and type.",
     "items": [
       {"cask": "figma"},
-      {"cask": "linear"},
-      {"cask": "slack"},
-      {"cask": "raycast"},
-      {"cask": "sip-app"},
-      {"cask": "cleanshot"},
-      {"mas": {"id": 1289583905, "name": "Pixelmator Pro"}},
+      {"cask": "sketch"},
+      {"cask": "affinity"},
       {"cask": "blender"},
-      {"cask": "screen-studio"}
+      {"cask": "sip-app"},
+      {"cask": "fontbase"},
+      {"cask": "iconjar"},
+      {"cask": "cleanshot"},
+      {"mas": {"id": 1289583905, "name": "Pixelmator Pro"}}
     ]
   },
   {
-    "slug": "writer",
-    "symbol": "pencil",
-    "title": "Writer kit",
-    "summary": "Long-form writers, researchers, note nerds.",
+    "slug": "writing",
+    "symbol": "pencil.line",
+    "title": "Writing",
+    "summary": "Distraction-free writing, notes and references.",
     "items": [
       {"cask": "obsidian"},
-      {"cask": "logseq"},
-      {"mas": {"id": 775737590, "name": "iA Writer"}},
-      {"cask": "scrivener"},
-      {"cask": "hazeover"},
-      {"cask": "raycast"},
+      {"cask": "notion"},
+      {"cask": "zotero"},
       {"cask": "grammarly-desktop"},
-      {"cask": "zotero"}
+      {"formula": "pandoc"},
+      {"mas": {"id": 775737590, "name": "iA Writer"}},
+      {"mas": {"id": 1091189122, "name": "Bear"}}
     ]
   },
   {
     "slug": "privacy",
     "symbol": "lock.shield",
-    "title": "Privacy power user",
-    "summary": "Lock it down end-to-end.",
+    "title": "Privacy & Security",
+    "summary": "VPN, passwords, encrypted chat and network monitors.",
     "items": [
       {"cask": "mullvad-vpn"},
       {"cask": "mullvad-browser"},
       {"cask": "proton-pass"},
-      {"cask": "bitwarden"},
       {"cask": "signal"},
+      {"cask": "lulu"},
       {"cask": "oversight"},
-      {"cask": "micro-snitch"},
+      {"cask": "blockblock"},
+      {"cask": "knockknock"},
       {"cask": "tor-browser"},
-      {"cask": "lulu"}
+      {"formula": "gnupg"}
     ]
   },
   {
-    "slug": "streamer",
+    "slug": "streaming",
     "symbol": "mic",
-    "title": "Streamer / podcaster",
-    "summary": "Capture, mix, and ship audio + video.",
+    "title": "Streaming & Podcasting",
+    "summary": "Capture, route and clean up audio and video.",
     "items": [
       {"cask": "obs"},
-      {"cask": "discord"},
       {"cask": "loopback"},
+      {"cask": "audio-hijack"},
       {"cask": "krisp"},
-      {"cask": "shottr"},
-      {"cask": "audacity"},
-      {"cask": "blackhole-2ch"},
-      {"cask": "screen-studio"}
+      {"cask": "descript"},
+      {"cask": "elgato-stream-deck"},
+      {"cask": "blackhole-2ch"}
     ]
   },
   {
     "slug": "photo-video",
     "symbol": "film",
-    "title": "Photo & video",
-    "summary": "Edit pixels and frames at home.",
+    "title": "Photo & Video",
+    "summary": "Edit, convert and play anything.",
     "items": [
-      {"mas": {"id": 1289583905, "name": "Pixelmator Pro"}},
-      {"mas": {"id": 571213070, "name": "DaVinci Resolve"}},
-      {"cask": "screen-studio"},
-      {"cask": "kap"},
       {"cask": "handbrake-app"},
       {"cask": "iina"},
+      {"cask": "kap"},
       {"cask": "imageoptim"},
-      {"cask": "permute"}
+      {"cask": "gimp"},
+      {"cask": "permute"},
+      {"formula": "ffmpeg"},
+      {"formula": "yt-dlp"},
+      {"mas": {"id": 571213070, "name": "DaVinci Resolve"}},
+      {"mas": {"id": 1289583905, "name": "Pixelmator Pro"}},
+      {"mas": {"id": 424389933, "name": "Final Cut Pro"}}
     ]
   },
   {
-    "slug": "power-user",
+    "slug": "productivity",
     "symbol": "bolt",
-    "title": "Power user",
-    "summary": "Hotkeys, automation, and quality-of-life.",
+    "title": "Productivity",
+    "summary": "Launchers, window tools and planners.",
     "items": [
       {"cask": "raycast"},
-      {"cask": "alfred"},
-      {"cask": "hammerspoon"},
-      {"cask": "karabiner-elements"},
-      {"cask": "bartender"},
-      {"cask": "popclip"},
-      {"cask": "hyperkey"},
       {"cask": "rectangle"},
-      {"cask": "shottr"},
-      {"cask": "maccy"}
+      {"cask": "bartender"},
+      {"cask": "cleanshot"},
+      {"cask": "homerow"},
+      {"cask": "popclip"},
+      {"cask": "fantastical"},
+      {"cask": "notion-calendar"},
+      {"mas": {"id": 904280696, "name": "Things 3"}}
     ]
   },
   {
     "slug": "communication",
     "symbol": "bubble.left.and.bubble.right",
     "title": "Communication",
-    "summary": "Chat, calls, and inbox apps.",
+    "summary": "Chat, calls and meetings.",
     "items": [
       {"cask": "slack"},
       {"cask": "discord"},
-      {"cask": "telegram"},
-      {"cask": "signal"},
       {"cask": "zoom"},
+      {"cask": "telegram"},
       {"cask": "whatsapp"},
-      {"cask": "thunderbird"},
-      {"cask": "readdle-spark"}
+      {"cask": "signal"},
+      {"cask": "microsoft-teams"}
     ]
   },
   {
     "slug": "files",
     "symbol": "folder",
-    "title": "Files & cloud",
-    "summary": "Sync, transfer, archive.",
+    "title": "Files & Cloud",
+    "summary": "Sync, transfer and archive.",
     "items": [
-      {"cask": "the-unarchiver"},
+      {"cask": "dropbox"},
+      {"cask": "google-drive"},
+      {"cask": "syncthing-app"},
       {"cask": "transmit"},
       {"cask": "cyberduck"},
-      {"cask": "dropbox"},
-      {"cask": "syncthing-app"},
-      {"formula": "rclone"},
-      {"cask": "backblaze"},
-      {"cask": "imageoptim"}
+      {"cask": "keka"},
+      {"formula": "rclone"}
     ]
   },
   {
-    "slug": "audio",
+    "slug": "music",
     "symbol": "headphones",
-    "title": "Audio kit",
-    "summary": "Listen, mix, and capture sound.",
+    "title": "Music & Audio",
+    "summary": "Listen, record and route sound.",
     "items": [
       {"cask": "spotify"},
       {"cask": "soundsource"},
-      {"cask": "audacity"},
-      {"cask": "audio-hijack"},
-      {"cask": "krisp"},
+      {"cask": "musicbrainz-picard"},
       {"cask": "blackhole-2ch"},
-      {"cask": "loopback"},
-      {"mas": {"id": 937984704, "name": "Amphetamine"}}
+      {"mas": {"id": 682658836, "name": "GarageBand"}},
+      {"mas": {"id": 634148309, "name": "Logic Pro"}}
     ]
   },
   {
     "slug": "study",
     "symbol": "books.vertical",
-    "title": "Study & research",
-    "summary": "Read, learn, take notes.",
+    "title": "Study & Research",
+    "summary": "Read, annotate and remember.",
     "items": [
       {"cask": "anki"},
-      {"cask": "calibre"},
       {"cask": "zotero"},
+      {"cask": "calibre"},
       {"cask": "obsidian"},
-      {"cask": "paperpile"}
+      {"cask": "marginnote"},
+      {"cask": "skim"},
+      {"cask": "reader"}
     ]
   },
   {
-    "slug": "maintenance",
-    "symbol": "stethoscope",
-    "title": "Mac maintenance",
-    "summary": "Keep your Mac fast and healthy.",
+    "slug": "office",
+    "symbol": "doc.richtext",
+    "title": "Office",
+    "summary": "Documents, spreadsheets, slides and PDFs.",
     "items": [
-      {"cask": "stats"},
+      {"cask": "onlyoffice"},
+      {"cask": "libreoffice"},
+      {"cask": "pdf-expert"},
+      {"cask": "microsoft-word"},
+      {"cask": "microsoft-excel"},
+      {"cask": "microsoft-powerpoint"}
+    ]
+  },
+  {
+    "slug": "mac-care",
+    "symbol": "stethoscope",
+    "title": "Mac Care",
+    "summary": "Keep the Mac fast, cool and tidy.",
+    "items": [
+      {"cask": "appcleaner"},
       {"cask": "onyx"},
       {"cask": "daisydisk"},
-      {"cask": "appcleaner"},
       {"cask": "monitorcontrol"},
       {"cask": "aldente"},
+      {"cask": "stats"},
       {"cask": "macs-fan-control"},
-      {"cask": "battery"}
+      {"formula": "mole"},
+      {"mas": {"id": 937984704, "name": "Amphetamine"}}
     ]
   },
   {
-    "slug": "network",
+    "slug": "networking",
     "symbol": "network",
-    "title": "Network kit",
-    "summary": "VPNs, tunnels, and net tools.",
+    "title": "Networking",
+    "summary": "Tunnels, VPNs and packet tools.",
     "items": [
       {"cask": "tailscale-app"},
-      {"cask": "mullvad-vpn"},
-      {"formula": "wireguard-tools"},
-      {"cask": "ngrok"},
-      {"cask": "cloudflare-warp"},
       {"cask": "wireshark-app"},
-      {"cask": "proxyman"}
+      {"cask": "proxyman"},
+      {"cask": "ngrok"},
+      {"formula": "nmap"},
+      {"formula": "mtr"},
+      {"formula": "wget"},
+      {"formula": "httpie"}
     ]
   },
   {
-    "slug": "finance",
-    "symbol": "chart.line.uptrend.xyaxis",
-    "title": "Finance & crypto",
-    "summary": "Track money, trade, hold keys.",
+    "slug": "gaming",
+    "symbol": "gamecontroller",
+    "title": "Gaming",
+    "summary": "Stores, launchers and emulators.",
     "items": [
-      {"cask": "ledger-wallet"},
-      {"cask": "tradingview"},
-      {"cask": "sparrow"}
+      {"cask": "steam"},
+      {"cask": "epic-games"},
+      {"cask": "heroic"},
+      {"cask": "prismlauncher"},
+      {"cask": "dolphin"},
+      {"cask": "ppsspp-emulator"}
     ]
   }
 ]
