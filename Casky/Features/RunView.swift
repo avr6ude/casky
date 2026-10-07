@@ -123,17 +123,7 @@ private struct StepRow: View {
         .padding(.vertical, 2)
     }
 
-    private var title: String {
-        switch step.action {
-        case .tap(let tap): "Add tap \(tap)"
-        case .install(let item): model.displayEntry(for: item).title
-        case .update(let item), .replace(let item): "Update \(model.displayEntry(for: item).title)"
-        case .remove(let item): "Remove \(model.displayEntry(for: item).title)"
-        case .hold(let item): "Hold \(model.displayEntry(for: item).title) at its version"
-        case .dotfiles(_, let configuration): configuration.files.count == 1 ? "Restore 1 dotfile" : "Restore \(configuration.files.count) dotfiles"
-        case .preferences(_, let preferences): preferences.count == 1 ? "Apply 1 Mac setting" : "Apply \(preferences.count) Mac settings"
-        }
-    }
+    private var title: String { model.title(for: step.action) }
 
     /// What the step did, and what it's doing while it runs.
     private var verbs: (done: String, running: String) {
@@ -142,6 +132,7 @@ private struct StepRow: View {
         case .update, .replace: ("Updated", "Updating…")
         case .remove: ("Removed", "Removing…")
         case .hold: ("Held", "Holding…")
+        case .editorExtension: ("Installed", "Installing…")
         case .dotfiles, .preferences: ("Done", "Applying…")
         }
     }

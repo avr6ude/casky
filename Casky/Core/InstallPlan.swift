@@ -14,6 +14,7 @@ struct InstallStep: Hashable, Sendable {
         /// Keep at its current version: `brew pin` for formulae; for apps,
         /// casky remembers and leaves them out of Update All.
         case hold(Item)
+        case editorExtension(EditorExtension)
         /// Restore a setup's dotfiles from its repository.
         case dotfiles(setup: UUID, DotfilesConfiguration)
         /// Write a setup's Mac preferences.
@@ -27,6 +28,7 @@ struct InstallStep: Hashable, Sendable {
             case nil:
                 switch self {
                 case .tap(let tap): tap
+                case .editorExtension(let editorExtension): editorExtension.identifier
                 case .dotfiles: "Dotfiles"
                 case .preferences: "Mac preferences"
                 case .install, .update, .replace, .remove, .hold: ""
@@ -37,13 +39,13 @@ struct InstallStep: Hashable, Sendable {
         var isUpdate: Bool {
             switch self {
             case .update, .replace: true
-            case .tap, .install, .remove, .hold, .dotfiles, .preferences: false
+            case .tap, .install, .remove, .hold, .editorExtension, .dotfiles, .preferences: false
             }
         }
 
         var item: Item? {
             switch self {
-            case .tap, .dotfiles, .preferences: nil
+            case .tap, .editorExtension, .dotfiles, .preferences: nil
             case .install(let item), .update(let item), .replace(let item), .remove(let item), .hold(let item): item
             }
         }
@@ -77,7 +79,8 @@ struct InstallPlan: Sendable {
     /// - Parameters:
     ///   - packages: the plan for `setup.installs`.
     ///   - held: apps casky already holds back.
-    init(setup: SavedSetup, packages: InstallPlan, installed: InstalledState = InstalledState(), updates: [Item: AvailableUpdate] = [:], held: Set<Item> = []) {
+    init(setup: SavedSetup, packages: InstallPlan, installed: InstalledState = InstalledState(), updates: [Item: AvailableUpdate] = [:], held: Set<Item> = [],
+         developer: DeveloperState = DeveloperState()) {
         var steps = setup.items
             .filter { setup.rule(for: $0) == .remove && installed.contains($0) }
             .map { InstallStep(action: .remove($0), prerequisites: []) }
@@ -97,6 +100,10 @@ struct InstallPlan: Sendable {
             case .remove, nil:
                 continue
             }
+        }
+        for editorExtension in setup.extensions ?? [] where developer.extensions[editorExtension.editor]?.contains(editorExtension.identifier) != true {
+            let editor = InstallStep.Action.install(editorExtension.editor.cask)
+            steps.append(InstallStep(action: .editorExtension(editorExtension), prerequisites: installing.contains(editor) ? [editor] : []))
         }
         if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
             steps.append(InstallStep(action: .dotfiles(setup: setup.id, dotfiles), prerequisites: []))

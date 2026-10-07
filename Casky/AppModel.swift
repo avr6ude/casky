@@ -90,6 +90,8 @@ final class AppModel {
     /// casky remembers them and leaves them out of Update All. (Formulae
     /// are pinned in Homebrew itself.)
     private(set) var heldItems: Set<Item> = []
+    /// Editor extensions and other tools on this Mac, for planning setups.
+    var developerState = DeveloperState()
     let dotfilesDirectory: URL
     let dotfilesBackupsDirectory: URL
     let preferencesBackupsDirectory: URL
@@ -361,6 +363,13 @@ final class AppModel {
         persistSetups()
     }
 
+    /// Changes a saved setup in place and saves it.
+    func updateSetup(_ id: SavedSetup.ID, _ change: (inout SavedSetup) -> Void) {
+        guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
+        change(&setups[index])
+        persistSetups()
+    }
+
     func setRule(_ rule: PackagePolicy.Rule?, for item: Item, in id: SavedSetup.ID) {
         guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
         setups[index].setRule(rule, for: item)
@@ -418,9 +427,7 @@ final class AppModel {
 
     func record(_ run: RunState) {
         guard !run.plan.steps.isEmpty else { return }
-        let record = RunRecord(run: run, date: .now) { action in
-            action.item.map { displayEntry(for: $0).title } ?? action.name
-        }
+        let record = RunRecord(run: run, date: .now) { title(for: $0) }
         history = RunRecord.appending(record, to: history)
         guard historyLoadError == nil else { return }
         do {

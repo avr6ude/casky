@@ -55,6 +55,14 @@ enum AnsiblePlaybook {
                                               ["id": "[\(chosen.map { String($0.id) }.joined(separator: ", "))]", "state": state], become: state == "absent"))
         }
 
+        for editor in Editor.allCases {
+            let ids = (setup.extensions ?? []).filter { $0.editor == editor }.map(\.identifier)
+            guard !ids.isEmpty else { continue }
+            tasks.append(task("Install \(editor.title) extensions", "ansible.builtin.command",
+                              ["argv": list(["/Applications/\(editor.appName)/\(editor.cliPath)", "--install-extension"]).dropLast() + ", \"{{ item }}\"]"],
+                              changedWhen: quoted("'already installed' not in result.stdout"), register: "result", loop: list(ids)))
+        }
+
         if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
             tasks += dotfilesTasks(dotfiles, setup: setup)
         }

@@ -97,7 +97,7 @@ struct Homebrew: Sendable {
             return try await runMasAsRoot(["uninstall", String(id)], environment: environment, onLine: onLine)
         case .hold(.formula(let ref)):
             return try await ToolRunner.stream(executable, arguments: ["pin", ref.fullName], environment: environment, onLine: onLine)
-        case .hold(.cask), .hold(.mas), .dotfiles, .preferences:
+        case .hold(.cask), .hold(.mas), .editorExtension, .dotfiles, .preferences:
             preconditionFailure("\(action.name) isn't a Homebrew step")
         }
     }

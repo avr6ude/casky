@@ -66,7 +66,7 @@ import Testing
         // The run is in the history, and the history survives a relaunch.
         let record = try #require(self.model(try fakeBrew()).history.first)
         #expect(record.installedCount == 3 && record.failedCount == 1 && record.alreadyInstalled == 1)
-        #expect(record.steps.map(\.title) == ["x/y", "tool", "good", "bad"])
+        #expect(record.steps.map(\.title) == ["Add tap x/y", "tool", "good", "bad"])
     }
 
     @Test func updatesComeFromHomebrewAndRun() async throws {
@@ -80,7 +80,7 @@ import Testing
         let run = try #require(model.run)
         #expect(run.plan.steps.map(\.action) == [.update(present)])
         #expect(run.outcomes[.update(present)] == .installed)
-        #expect(model.history.first?.steps.map(\.title) == ["present"])
+        #expect(model.history.first?.steps.map(\.title) == ["Update present"])
     }
 
     @Test func settingsAcceptOnlyHomebrew() async throws {

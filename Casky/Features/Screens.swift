@@ -15,7 +15,7 @@ struct KitView: View {
 struct SetupView: View {
     @Environment(AppModel.self) private var model
     let setup: SavedSetup
-    private enum Content: String, CaseIterable { case packages = "Apps & Tools", dotfiles = "Dotfiles", preferences = "Mac Preferences" }
+    private enum Content: String, CaseIterable { case packages = "Apps & Tools", developer = "Developer", dotfiles = "Dotfiles", preferences = "Mac Preferences" }
     @State private var content = Content.packages
     @State private var isApplying = false
 
@@ -26,10 +26,11 @@ struct SetupView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 440)
+            .frame(width: 520)
             .padding(.top, 16)
             switch content {
             case .packages: packages
+            case .developer: DeveloperView(setup: setup) { content = .dotfiles }.id(setup.id)
             case .dotfiles: DotfilesView(setup: setup).id(setup.id)
             case .preferences: MacPreferencesView(setup: setup).id(setup.id)
             }
@@ -108,6 +109,17 @@ private struct ApplySetupSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                let developerSteps = plan.steps.filter { if case .editorExtension = $0.action { true } else { false } }
+                if !developerSteps.isEmpty || setup.extensions?.isEmpty == false {
+                    Section("Developer") {
+                        ForEach(developerSteps, id: \.self) { step in
+                            Text(model.title(for: step.action))
+                        }
+                        if developerSteps.isEmpty {
+                            Text("Everything is already set up").foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 Section("Dotfiles") {
                     if dotfiles.isEmpty {
                         Text("None in this setup").foregroundStyle(.secondary)
@@ -147,6 +159,7 @@ private struct ApplySetupSheet: View {
             .padding(20)
         }
         .frame(width: 560, height: 600)
+        .task { await model.refreshDeveloperState() }
     }
 
     private func verb(_ action: InstallStep.Action) -> String {
@@ -155,7 +168,7 @@ private struct ApplySetupSheet: View {
         case .update, .replace: "Update"
         case .remove: "Remove"
         case .hold: "Hold at its version"
-        case .tap, .dotfiles, .preferences: ""
+        case .tap, .editorExtension, .dotfiles, .preferences: ""
         }
     }
 

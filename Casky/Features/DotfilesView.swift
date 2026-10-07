@@ -43,8 +43,18 @@ struct DotfilesView: View {
             id = UUID()
             self.source = source
             let name = (source as NSString).lastPathComponent
-            destination = name.hasPrefix(".") ? name : "." + name
+            destination = Self.editorDestination(for: source) ?? (name.hasPrefix(".") ? name : "." + name)
             mode = .link
+        }
+
+        /// `cursor/settings.json` belongs in Cursor's settings folder, and
+        /// `vscode/keybindings.json` or `code/snippets` in VS Code's.
+        static func editorDestination(for source: String) -> String? {
+            let name = (source as NSString).lastPathComponent
+            guard ["settings.json", "keybindings.json", "snippets"].contains(name) else { return nil }
+            let folder = source.lowercased()
+            let editor: Editor? = folder.contains("cursor") ? .cursor : folder.contains("vscode") || folder.contains("code") ? .vscode : nil
+            return editor.map { "\($0.userFolder)/\(name)" }
         }
 
         func value() throws -> Dotfile {
@@ -132,6 +142,22 @@ struct DotfilesView: View {
                                     TextField("Destination", text: $file.destination)
                                         .labelsHidden()
                                         .accessibilityLabel("Destination for \(file.source)")
+                                    Menu {
+                                        ForEach(Editor.allCases, id: \.self) { editor in
+                                            Section(editor.title) {
+                                                ForEach(["settings.json", "keybindings.json", "snippets"], id: \.self) { name in
+                                                    Button(name) { file.destination = "\(editor.userFolder)/\(name)" }
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        Image(systemName: "chevron.up.chevron.down")
+                                    }
+                                    .menuStyle(.borderlessButton)
+                                    .menuIndicator(.hidden)
+                                    .fixedSize()
+                                    .help("Editor settings locations")
+                                    .accessibilityLabel("Choose an editor settings location for \(file.source)")
                                 }
                                 Picker("Method", selection: $file.mode) {
                                     ForEach(Dotfile.Mode.allCases, id: \.self) { Text($0.title).tag($0) }

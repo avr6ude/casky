@@ -20,7 +20,21 @@ extension AppModel {
 
     /// What applying a saved setup would do right now.
     func previewPlan(for setup: SavedSetup) -> InstallPlan {
-        InstallPlan(setup: setup, packages: previewPlan(for: setup.installs), installed: installed, updates: updates, held: heldItems)
+        InstallPlan(setup: setup, packages: previewPlan(for: setup.installs), installed: installed, updates: updates, held: heldItems, developer: developerState)
+    }
+
+    /// One line per step, for the run window, the review sheet and history.
+    func title(for action: InstallStep.Action) -> String {
+        switch action {
+        case .tap(let tap): "Add tap \(tap)"
+        case .install(let item): displayEntry(for: item).title
+        case .update(let item), .replace(let item): "Update \(displayEntry(for: item).title)"
+        case .remove(let item): "Remove \(displayEntry(for: item).title)"
+        case .hold(let item): "Hold \(displayEntry(for: item).title) at its version"
+        case .editorExtension(let editorExtension): "\(editorExtension.editor.title) extension \(editorExtension.identifier)"
+        case .dotfiles(_, let configuration): configuration.files.count == 1 ? "Restore 1 dotfile" : "Restore \(configuration.files.count) dotfiles"
+        case .preferences(_, let preferences): preferences.count == 1 ? "Apply 1 Mac setting" : "Apply \(preferences.count) Mac settings"
+        }
     }
 
     var isSetupRun: Bool {
@@ -88,6 +102,7 @@ extension AppModel {
                 return
             }
             if setup.policies?.contains(where: { $0.rule == .keepUpdated }) == true { await refreshUpdates() }
+            await refreshDeveloperState()
             run = RunState(plan: previewPlan(for: setup))
         }
 
@@ -103,6 +118,10 @@ extension AppModel {
         isInstalling = false
         await refreshInstalled()
         await refreshUpdates()
+    }
+
+    func refreshDeveloperState() async {
+        developerState = await DeveloperTools.state()
     }
 
     func stopAfterCurrentStep() {
@@ -130,6 +149,8 @@ extension AppModel {
             case .dotfiles(let id, let configuration):
                 try await SetupSteps.restoreDotfiles(configuration, checkouts: checkouts.appending(path: id.uuidString), backups: dotfileBackups, onLine: onLine)
                 return 0
+            case .editorExtension(let editorExtension):
+                return try await DeveloperTools.install(editorExtension, onLine: onLine)
             case .preferences(let id, let preferences):
                 try await SetupSteps.applyPreferences(preferences, backups: preferenceBackups.appending(path: id.uuidString), onLine: onLine)
                 return 0

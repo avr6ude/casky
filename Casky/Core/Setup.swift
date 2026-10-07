@@ -11,6 +11,7 @@ struct SavedSetup: Codable, Hashable, Identifiable, Sendable {
     /// How items differ from a plain install. Items without one are
     /// installed and otherwise left alone.
     var policies: [PackagePolicy]? = nil
+    var extensions: [EditorExtension]? = nil
 
     func rule(for item: Item) -> PackagePolicy.Rule? {
         policies?.first { $0.item == item }?.rule
