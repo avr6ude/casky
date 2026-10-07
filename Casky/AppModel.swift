@@ -67,6 +67,8 @@ final class AppModel {
     var runItems: [Item] = []
     /// The item shown in the Quick Look-style preview.
     var previewEntry: CatalogEntry?
+    /// Whether admin prompts use Touch ID (Settings > Admin Prompts).
+    var touchIDForAdmin = TouchIDForSudo.isEnabled
 
     private(set) var selection: [Item] = []
     private var selectedSet: Set<Item> = []

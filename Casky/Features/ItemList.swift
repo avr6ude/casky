@@ -19,6 +19,7 @@ struct ItemList: View {
                     isSelected: model.isSelected(entry.item),
                     isInstalled: model.isInstalled(entry.item),
                     isManaged: model.isManaged(entry.item),
+                    touchID: model.touchIDForAdmin,
                     preview: { model.previewEntry = entry }
                 ) {
                     model.toggle(entry.item)
@@ -76,6 +77,7 @@ struct ItemRow: View {
     let isSelected: Bool
     let isInstalled: Bool
     var isManaged = true
+    var touchID = false
     var preview: (() -> Void)?
     let toggle: () -> Void
 
@@ -89,17 +91,13 @@ struct ItemRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text(entry.title)
                         .font(.body.weight(.medium))
+                        .lineLimit(1)
                     if entry.needsAdmin {
-                        Label("Admin", systemImage: "lock.fill")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.fill.tertiary, in: .capsule)
-                            .help("Installing this asks for Touch ID or your Mac password.")
+                        Pill.approval(touchID: touchID)
+                            .help("This app installs with a system installer, so macOS asks you to approve it.")
                     }
                 }
                 if let summary = entry.summary {
@@ -113,18 +111,17 @@ struct ItemRow: View {
             // whichever text it finds first (e.g. "Installed") and they jump around.
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 16)
 
             if isInstalled {
-                Label("Installed", systemImage: "checkmark.circle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.green)
+                Pill.installed
                     .help(isManaged ? "Installed with Homebrew" : "Installed outside Homebrew, so casky leaves it alone")
             }
 
             Text(entry.item.kind.label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: 112, alignment: .trailing)
                 .help(entry.item.technicalName)
 
             if let preview {

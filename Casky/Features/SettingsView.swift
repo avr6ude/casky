@@ -100,6 +100,7 @@ struct SettingsView: View {
                 touchIDError = "Couldn't change Touch ID for admin prompts: \(AppModel.describe(error))"
             }
             touchID = TouchIDForSudo.isEnabled
+            model.touchIDForAdmin = touchID
         }
     }
 
