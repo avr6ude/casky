@@ -15,24 +15,44 @@ enum AnsiblePlaybook {
         var handlers: Set<String> = []
         let items = setup.items.uniqued()
 
-        let taps = items.compactMap(\.tap).uniqued()
-        var formulae = items.compactMap { if case .formula(let ref) = $0 { ref.fullName } else { nil } }
-        let casks = items.compactMap { if case .cask(let ref) = $0 { ref.fullName } else { nil } }
-        let apps = items.compactMap { if case .mas(let id, let name) = $0 { (id: id, name: name) } else { nil } }
-        if !apps.isEmpty, !formulae.contains(Ref.masTool.fullName) { formulae.append(Ref.masTool.fullName) }
+        let kept = items.filter { setup.rule(for: $0) != .remove }
+        let taps = kept.compactMap(\.tap).uniqued()
+        let names = { (kind: Item.Kind, rules: Set<PackagePolicy.Rule?>) in
+            items.filter { $0.kind == kind && rules.contains(setup.rule(for: $0)) }.map(\.technicalName)
+        }
+        let apps = items.compactMap { if case .mas(let id, let name) = $0 { (id: id, name: name, rule: setup.rule(for: $0)) } else { nil } }
+        var formulae = names(.formula, [nil, .hold])
+        if apps.contains(where: { $0.rule != .remove }), !items.contains(.formula(.masTool)) { formulae.append(Ref.masTool.fullName) }
 
         if !taps.isEmpty {
             tasks.append(task("Add Homebrew taps", "community.general.homebrew_tap", ["name": list(taps)]))
         }
-        if !formulae.isEmpty {
-            tasks.append(task("Install command-line tools", "community.general.homebrew", ["name": list(formulae), "state": "present"]))
+        // One task per state: present, latest (Keep Updated), absent (Remove).
+        for (kind, module, noun) in [(Item.Kind.formula, "community.general.homebrew", "command-line tools"), (.cask, "community.general.homebrew_cask", "apps")] {
+            let present = kind == .formula ? formulae : names(kind, [nil, .hold])
+            if !present.isEmpty { tasks.append(task("Install \(noun)", module, ["name": list(present), "state": "present"])) }
+            let latest = names(kind, [.keepUpdated])
+            if !latest.isEmpty { tasks.append(task("Install and update \(noun)", module, ["name": list(latest), "state": "latest"])) }
+            let absent = names(kind, [.remove])
+            if !absent.isEmpty { tasks.append(task("Remove \(noun)", module, ["name": list(absent), "state": "absent"])) }
         }
-        if !casks.isEmpty {
-            tasks.append(task("Install apps", "community.general.homebrew_cask", ["name": list(casks), "state": "present"]))
+        let held = names(.formula, [.hold])
+        if !held.isEmpty {
+            tasks.append(task("List held command-line tools", "ansible.builtin.command", ["argv": "[brew, list, --pinned]"], changedWhen: "false", register: "pinned", readOnly: true))
+            tasks.append(task("Hold command-line tools at their versions", "ansible.builtin.command", ["argv": "[brew, pin, \"{{ item }}\"]"],
+                              loop: list(held), when: "item not in pinned.stdout_lines"))
         }
-        if !apps.isEmpty {
-            let names = apps.map { "# \($0.id): \(comment($0.name))" }.joined(separator: "\n")
-            tasks.append(names + "\n" + task("Install App Store apps (sign in to the App Store first)", "community.general.mas", ["id": "[\(apps.map { String($0.id) }.joined(separator: ", "))]", "state": "present"]))
+        let heldApps = items.filter { $0.kind == .cask && setup.rule(for: $0) == .hold }.map(\.technicalName)
+        if !heldApps.isEmpty {
+            tasks.append("# Held at their version in casky (Homebrew can't pin apps): \(comment(heldApps.joined(separator: ", ")))")
+        }
+        for (state, rules, verb) in [("present", Set<PackagePolicy.Rule?>([nil, .hold]), "Install"), ("latest", [.keepUpdated], "Install and update"), ("absent", [.remove], "Remove")] {
+            let chosen = apps.filter { rules.contains($0.rule) }
+            guard !chosen.isEmpty else { continue }
+            let names = chosen.map { "# \($0.id): \(comment($0.name))" }.joined(separator: "\n")
+            // Removing an App Store app needs root.
+            tasks.append(names + "\n" + task("\(verb) App Store apps\(state == "absent" ? "" : " (sign in to the App Store first)")", "community.general.mas",
+                                              ["id": "[\(chosen.map { String($0.id) }.joined(separator: ", "))]", "state": state], become: state == "absent"))
         }
 
         if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
@@ -143,9 +163,16 @@ enum AnsiblePlaybook {
     // MARK: YAML
 
     /// One task; arguments are already YAML scalars or flow sequences.
-    static func task(_ name: String, _ module: String, _ arguments: [String: String], notify: String? = nil, changedWhen: String? = nil) -> String {
+    static func task(_ name: String, _ module: String, _ arguments: [String: String], notify: String? = nil, changedWhen: String? = nil,
+                     register: String? = nil, loop: String? = nil, when: String? = nil, become: Bool = false, readOnly: Bool = false) -> String {
         var lines = ["- name: \(quoted(name))", "  \(module):"]
         lines += arguments.keys.sorted().map { "    \($0): \(arguments[$0]!)" }
+        if become { lines.append("  become: true") }
+        // Read-only commands still run under --check, so later tasks can use their output.
+        if readOnly { lines.append("  check_mode: false") }
+        if let loop { lines.append("  loop: \(loop)") }
+        if let when { lines.append("  when: \(quoted(when))") }
+        if let register { lines.append("  register: \(register)") }
         if let changedWhen { lines.append("  changed_when: \(changedWhen)") }
         if let notify { lines.append("  notify: \(quoted("Restart \(notify)"))") }
         return lines.joined(separator: "\n")

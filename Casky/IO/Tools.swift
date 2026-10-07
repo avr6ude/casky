@@ -89,7 +89,15 @@ struct Homebrew: Sendable {
             return try await ToolRunner.stream(executable, arguments: ["install", "--cask", "--force", ref.fullName], environment: environment, onLine: onLine)
         case .update(.mas(let id, _)), .replace(.mas(let id, _)):
             return try await runMasAsRoot(["update", String(id)], environment: environment, onLine: onLine)
-        case .dotfiles, .preferences:
+        case .remove(.formula(let ref)):
+            return try await ToolRunner.stream(executable, arguments: ["uninstall", ref.fullName], environment: environment, onLine: onLine)
+        case .remove(.cask(let ref)):
+            return try await ToolRunner.stream(executable, arguments: ["uninstall", "--cask", ref.fullName], environment: environment, onLine: onLine)
+        case .remove(.mas(let id, _)):
+            return try await runMasAsRoot(["uninstall", String(id)], environment: environment, onLine: onLine)
+        case .hold(.formula(let ref)):
+            return try await ToolRunner.stream(executable, arguments: ["pin", ref.fullName], environment: environment, onLine: onLine)
+        case .hold(.cask), .hold(.mas), .dotfiles, .preferences:
             preconditionFailure("\(action.name) isn't a Homebrew step")
         }
     }

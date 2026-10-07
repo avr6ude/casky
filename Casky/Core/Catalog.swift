@@ -36,6 +36,24 @@ struct Catalog: Sendable {
 
     func entry(for item: Item) -> CatalogEntry? { index[item] }
 
+    /// The other versions Homebrew offers of a core formula: `node`,
+    /// `node@22`, `node@20`, newest first after the unversioned one.
+    func versions(of item: Item) -> [Item] {
+        guard case .formula(let ref) = item, ref.tap == nil else { return [] }
+        let base = ref.name.split(separator: "@").first.map(String.init) ?? ref.name
+        let found = entries.compactMap { entry -> Ref? in
+            guard case .formula(let other) = entry.item, other.tap == nil,
+                  other.name == base || other.name.hasPrefix(base + "@") else { return nil }
+            return other
+        }
+        guard found.count > 1 else { return [] }
+        return found.sorted { left, right in
+            if left.name == base { return true }
+            if right.name == base { return false }
+            return left.name.compare(right.name, options: .numeric) == .orderedDescending
+        }.map(Item.formula)
+    }
+
     var adminItems: Set<Item> { Set(entries.lazy.filter(\.needsAdmin).map(\.item)) }
 
     /// Ranked by match quality (exact, prefix, substring of name, then

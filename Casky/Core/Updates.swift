@@ -9,6 +9,8 @@ struct AvailableUpdate: Hashable, Sendable {
     /// installed some other way, which Homebrew updates by replacing the
     /// copy in Applications (and manages from then on).
     let managed: Bool
+    /// Pinned in Homebrew, or held by a setup: Update All leaves it alone.
+    var isHeld = false
 }
 
 enum Updates {
@@ -18,7 +20,7 @@ enum Updates {
         let outdated = try JSONDecoder().decode(Outdated.self, from: data)
         let formulae = outdated.formulae.compactMap { entry -> AvailableUpdate? in
             guard requestedFormulae.contains(entry.name.lowercased()), let ref = try? Ref(parsing: entry.name) else { return nil }
-            return AvailableUpdate(item: .formula(ref), installed: entry.installed_versions.last ?? "", latest: entry.current_version, managed: true)
+            return AvailableUpdate(item: .formula(ref), installed: entry.installed_versions.last ?? "", latest: entry.current_version, managed: true, isHeld: entry.pinned == true)
         }
         let casks = outdated.casks.compactMap { entry -> AvailableUpdate? in
             guard let ref = try? Ref(parsing: entry.name) else { return nil }
@@ -59,6 +61,7 @@ enum Updates {
             let name: String
             let installed_versions: [String]
             let current_version: String
+            let pinned: Bool?
         }
     }
 }

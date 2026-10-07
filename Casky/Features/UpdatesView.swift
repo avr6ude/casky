@@ -25,9 +25,11 @@ struct UpdatesView: View {
                     Button("Update \(chosen.count) Selected") { Task { await model.update(chosen) } }
                         .disabled(model.isInstalling)
                 }
-                Button("Update All") { Task { await model.update(entries.map(\.item)) } }
+                let updatable = entries.map(\.item).filter { model.updates[$0]?.isHeld != true }
+                Button("Update All") { Task { await model.update(updatable) } }
                     .buttonStyle(.borderedProminent)
-                    .disabled(entries.isEmpty || model.isInstalling)
+                    .disabled(updatable.isEmpty || model.isInstalling)
+                    .help(updatable.count < entries.count ? "Leaves the \(entries.count - updatable.count) on hold alone" : "")
             }
             .controlSize(.large)
             .padding(24)

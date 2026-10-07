@@ -128,22 +128,31 @@ private struct StepRow: View {
         case .tap(let tap): "Add tap \(tap)"
         case .install(let item): model.displayEntry(for: item).title
         case .update(let item), .replace(let item): "Update \(model.displayEntry(for: item).title)"
+        case .remove(let item): "Remove \(model.displayEntry(for: item).title)"
+        case .hold(let item): "Hold \(model.displayEntry(for: item).title) at its version"
         case .dotfiles(_, let configuration): configuration.files.count == 1 ? "Restore 1 dotfile" : "Restore \(configuration.files.count) dotfiles"
         case .preferences(_, let preferences): preferences.count == 1 ? "Apply 1 Mac setting" : "Apply \(preferences.count) Mac settings"
         }
     }
 
-    private var detail: String {
-        switch outcome {
-        case .installed: step.action.isUpdate ? "Updated" : step.action.item == nil && !isTap ? "Done" : "Installed"
-        case .failed(let status, _): "Failed (exit \(status))"
-        case .skipped(let reason): "Skipped: \(reason)"
-        case nil: isCurrent ? (step.action.item == nil && !isTap ? "Applying…" : "Installing…") : "Waiting"
+    /// What the step did, and what it's doing while it runs.
+    private var verbs: (done: String, running: String) {
+        switch step.action {
+        case .tap, .install: ("Installed", "Installing…")
+        case .update, .replace: ("Updated", "Updating…")
+        case .remove: ("Removed", "Removing…")
+        case .hold: ("Held", "Holding…")
+        case .dotfiles, .preferences: ("Done", "Applying…")
         }
     }
 
-    private var isTap: Bool {
-        if case .tap = step.action { true } else { false }
+    private var detail: String {
+        switch outcome {
+        case .installed: verbs.done
+        case .failed(let status, _): "Failed (exit \(status))"
+        case .skipped(let reason): "Skipped: \(reason)"
+        case nil: isCurrent ? verbs.running : "Waiting"
+        }
     }
 
     @ViewBuilder private var status: some View {

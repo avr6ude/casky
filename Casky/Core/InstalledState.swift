@@ -10,6 +10,8 @@ struct InstalledState: Sendable {
     /// App Store id → name.
     var masApps: [Int: String] = [:]
     var taps: Set<String> = []
+    /// Formulae held back with `brew pin`.
+    var pinned: Set<String> = []
     /// Lowercased names of the `.app` bundles in the Applications folders,
     /// however they got there.
     var appBundles: Set<String> = []
@@ -56,7 +58,8 @@ extension InstalledState {
             requestedFormulae: Set(info.formulae.filter { $0.installed.contains { $0.installed_on_request == true } }.map { $0.full_name.lowercased() }),
             casks: Set(info.casks.map { $0.full_token.lowercased() }),
             masApps: try masList.map(parseMasList) ?? [:],
-            taps: Set(taps.map { $0.name.lowercased() })
+            taps: Set(taps.map { $0.name.lowercased() }),
+            pinned: Set(info.formulae.filter { $0.pinned == true }.map { $0.full_name.lowercased() })
         )
     }
 
@@ -79,6 +82,7 @@ extension InstalledState {
         struct Formula: Decodable {
             let full_name: String
             let installed: [Installed]
+            let pinned: Bool?
         }
         struct Installed: Decodable { let installed_on_request: Bool? }
         struct Cask: Decodable { let full_token: String }

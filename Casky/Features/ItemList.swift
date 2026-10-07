@@ -11,6 +11,8 @@ struct ItemList: View {
     var showsUpdateVersions = false
     /// Called when the last row scrolls into view, to load more.
     var onReachEnd: (() -> Void)?
+    /// In a saved setup, rows also say what applying it does to each item.
+    var setup: SavedSetup?
     @State private var highlighted = Set<Item>()
 
     var body: some View {
@@ -24,6 +26,7 @@ struct ItemList: View {
                     update: model.updates[entry.item],
                     showsUpdateVersions: showsUpdateVersions,
                     touchID: model.touchIDForAdmin,
+                    accessory: setup.map { AnyView(SetupRuleMenu(setup: $0, item: entry.item)) },
                     preview: { model.previewEntry = entry }
                 ) {
                     model.toggle(entry.item)
@@ -66,6 +69,15 @@ struct ItemList: View {
             Button(items.allSatisfy(model.isSelected) ? "Remove from Selection" : "Add to Selection") {
                 model.toggleAll(items)
             }
+            // Homebrew can't pin apps; casky holds them instead. Tools are
+            // held with a setup (brew pin).
+            let apps = items.filter { $0.kind != .formula && model.isManaged($0) }
+            if !apps.isEmpty {
+                let isHeld = apps.allSatisfy(model.heldItems.contains)
+                Button(isHeld ? "Allow Updates" : "Hold at This Version") {
+                    for app in apps { model.setHeld(app, !isHeld) }
+                }
+            }
         } primaryAction: { clicked in
             let items = items(in: clicked)
             let missing = items.filter { !model.isInstalled($0) }
@@ -91,6 +103,8 @@ struct ItemRow: View {
     var update: AvailableUpdate?
     var showsUpdateVersions = false
     var touchID = false
+    /// Shown before the kind, e.g. a setup's rule for this item.
+    var accessory: AnyView?
     var preview: (() -> Void)?
     let toggle: () -> Void
 
@@ -126,7 +140,10 @@ struct ItemRow: View {
 
             Spacer(minLength: 16)
 
-            if let update {
+            if let update, update.isHeld {
+                Pill.held
+                    .help("\(update.versions) is available, but this is held at its version. Update All leaves it alone.")
+            } else if let update {
                 (showsUpdateVersions ? Pill(text: update.versions, symbol: "arrow.down", tint: .accentColor) : Pill.update)
                     .help(update.managed
                           ? "Update available: \(update.versions)"
@@ -134,6 +151,10 @@ struct ItemRow: View {
             } else if isInstalled {
                 Pill.installed
                     .help(isManaged ? "Installed with Homebrew" : "Installed outside Homebrew, so casky leaves it alone")
+            }
+
+            if let accessory {
+                accessory.frame(width: 160, alignment: .trailing)
             }
 
             Text(entry.item.kind.label)
@@ -183,5 +204,55 @@ struct ItemIcon: View {
         }
         .frame(width: size, height: size)
         .task(id: entry.item) { icon = await IconStore.shared.icon(for: entry, pixelSize: Int(size * 2)) }
+    }
+}
+
+/// What applying a setup does with one of its items: install it (and keep
+/// it updated or hold it), or remove it. Versioned tools also pick which
+/// version the setup uses.
+struct SetupRuleMenu: View {
+    @Environment(AppModel.self) private var model
+    let setup: SavedSetup
+    let item: Item
+
+    var body: some View {
+        let rule = setup.rule(for: item)
+        let versions = model.catalog?.versions(of: item) ?? []
+        Menu {
+            Picker("When Applying This Setup", selection: Binding(get: { rule }, set: { model.setRule($0, for: item, in: setup.id) })) {
+                Text("Install").tag(PackagePolicy.Rule?.none)
+                Text("Install and Keep Updated").tag(PackagePolicy.Rule?.some(.keepUpdated))
+                Text("Install and Hold Updates").tag(PackagePolicy.Rule?.some(.hold))
+                Divider()
+                Text("Remove from This Mac").tag(PackagePolicy.Rule?.some(.remove))
+            }
+            .pickerStyle(.inline)
+            if !versions.isEmpty {
+                Picker("Version", selection: Binding(get: { item }, set: { model.replace(item, with: $0, in: setup.id) })) {
+                    ForEach(versions, id: \.self) { version in
+                        Text(version.technicalName).tag(version)
+                            .disabled(version != item && setup.items.contains(version))
+                    }
+                }
+            }
+        } label: {
+            if let rule {
+                Label(rule.title, systemImage: rule.symbol)
+            } else {
+                Text("Install")
+            }
+        }
+        .fixedSize()
+        .help("What Apply Setup does with \(model.displayEntry(for: item).title)")
+    }
+}
+
+private extension PackagePolicy.Rule {
+    var symbol: String {
+        switch self {
+        case .keepUpdated: "arrow.triangle.2.circlepath"
+        case .hold: "pause.fill"
+        case .remove: "trash"
+        }
     }
 }

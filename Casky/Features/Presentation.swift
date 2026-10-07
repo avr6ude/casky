@@ -38,6 +38,16 @@ extension Item {
     }
 }
 
+extension PackagePolicy.Rule {
+    var title: String {
+        switch self {
+        case .keepUpdated: "Keep Updated"
+        case .hold: "Hold Updates"
+        case .remove: "Remove"
+        }
+    }
+}
+
 /// A small status pill: "Installed", "Asks for Touch ID".
 struct Pill: View {
     let text: String
@@ -59,6 +69,7 @@ struct Pill: View {
 
     static let installed = Pill(text: "Installed", symbol: "checkmark", tint: .green)
     static let update = Pill(text: "Update", symbol: "arrow.down", tint: .accentColor)
+    static let held = Pill(text: "On hold", symbol: "pause.fill", tint: .orange)
 
     /// What installing an item that needs admin rights will do.
     static func approval(touchID: Bool) -> Pill {

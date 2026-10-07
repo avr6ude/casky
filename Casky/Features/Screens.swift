@@ -61,7 +61,8 @@ struct SetupView: View {
             symbol: "square.stack",
             title: setup.name,
             subtitle: "Saved \(setup.createdAt.formatted(date: .abbreviated, time: .omitted))",
-            entries: setup.items.map(model.displayEntry(for:))
+            entries: setup.items.map(model.displayEntry(for:)),
+            setup: setup
         )
     }
 }
@@ -77,6 +78,7 @@ private struct ApplySetupSheet: View {
         let plan = model.previewPlan(for: setup)
         let taps = plan.steps.compactMap { if case .tap(let tap) = $0.action { tap } else { nil } }
         let installs = plan.steps.compactMap { if case .install(let item) = $0.action { item } else { nil } }
+        let packageSteps = plan.steps.filter { if case .tap = $0.action { false } else { $0.action.item != nil } }
         let dotfiles = setup.dotfiles?.files ?? []
         let preferences = setup.macPreferences ?? []
         VStack(alignment: .leading, spacing: 0) {
@@ -91,15 +93,17 @@ private struct ApplySetupSheet: View {
                     ForEach(taps, id: \.self) { tap in
                         LabeledContent("Add tap \(tap)", value: "Tap")
                     }
-                    ForEach(installs, id: \.self) { item in
-                        let entry = model.displayEntry(for: item)
-                        LabeledContent {
-                            Text(item.kind.label)
-                        } label: {
-                            Label { Text(entry.title) } icon: { ItemIcon(entry: entry, size: 20) }
+                    ForEach(packageSteps, id: \.self) { step in
+                        if let item = step.action.item {
+                            let entry = model.displayEntry(for: item)
+                            LabeledContent {
+                                Text(verb(step.action))
+                            } label: {
+                                Label { Text(entry.title) } icon: { ItemIcon(entry: entry, size: 20) }
+                            }
                         }
                     }
-                    if !plan.alreadyInstalled.isEmpty || installs.isEmpty {
+                    if !plan.alreadyInstalled.isEmpty || packageSteps.isEmpty {
                         Text(setup.items.isEmpty ? "None in this setup" : "^[\(plan.alreadyInstalled.count) already installed](inflect: true), skipped")
                             .foregroundStyle(.secondary)
                     }
@@ -145,6 +149,16 @@ private struct ApplySetupSheet: View {
         .frame(width: 560, height: 600)
     }
 
+    private func verb(_ action: InstallStep.Action) -> String {
+        switch action {
+        case .install(let item): "Install \(item.kind.label.lowercased())"
+        case .update, .replace: "Update"
+        case .remove: "Remove"
+        case .hold: "Hold at its version"
+        case .tap, .dotfiles, .preferences: ""
+        }
+    }
+
     private func note(installs: [Item]) -> String {
         if model.homebrew == nil, !installs.isEmpty { return "Homebrew isn't installed, so apps and tools will be skipped." }
         var notes: [String] = []
@@ -180,6 +194,9 @@ struct CollectionView<Actions: View>: View {
     let title: String
     let subtitle: String
     let entries: [CatalogEntry]
+    /// Set for a saved setup: rows get its rules, and items it removes
+    /// aren't offered for install.
+    var setup: SavedSetup?
     @ViewBuilder var actions: Actions
 
     var body: some View {
@@ -200,7 +217,7 @@ struct CollectionView<Actions: View>: View {
                     model.toggleAll(items)
                 }
                 .disabled(items.isEmpty)
-                let missing = items.filter { !model.isInstalled($0) }
+                let missing = items.filter { !model.isInstalled($0) && setup?.rule(for: $0) != .remove }
                 Button(missing.isEmpty && !items.isEmpty ? "All Installed" : "Install Now") {
                     Task { await model.install(missing) }
                 }
@@ -211,14 +228,14 @@ struct CollectionView<Actions: View>: View {
             .controlSize(.large)
             .padding(24)
             Divider()
-            ItemList(entries: entries)
+            ItemList(entries: entries, setup: setup)
         }
     }
 }
 
 extension CollectionView where Actions == EmptyView {
-    init(symbol: String, title: String, subtitle: String, entries: [CatalogEntry]) {
-        self.init(symbol: symbol, title: title, subtitle: subtitle, entries: entries) { EmptyView() }
+    init(symbol: String, title: String, subtitle: String, entries: [CatalogEntry], setup: SavedSetup? = nil) {
+        self.init(symbol: symbol, title: title, subtitle: subtitle, entries: entries, setup: setup) { EmptyView() }
     }
 }
 

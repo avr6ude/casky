@@ -9,6 +9,11 @@ struct InstallStep: Hashable, Sendable {
         case update(Item)
         /// Have Homebrew replace a copy it doesn't manage with its newer one.
         case replace(Item)
+        /// Uninstall something a setup removes.
+        case remove(Item)
+        /// Keep at its current version: `brew pin` for formulae; for apps,
+        /// casky remembers and leaves them out of Update All.
+        case hold(Item)
         /// Restore a setup's dotfiles from its repository.
         case dotfiles(setup: UUID, DotfilesConfiguration)
         /// Write a setup's Mac preferences.
@@ -24,7 +29,7 @@ struct InstallStep: Hashable, Sendable {
                 case .tap(let tap): tap
                 case .dotfiles: "Dotfiles"
                 case .preferences: "Mac preferences"
-                case .install, .update, .replace: ""
+                case .install, .update, .replace, .remove, .hold: ""
                 }
             }
         }
@@ -32,14 +37,14 @@ struct InstallStep: Hashable, Sendable {
         var isUpdate: Bool {
             switch self {
             case .update, .replace: true
-            case .tap, .install, .dotfiles, .preferences: false
+            case .tap, .install, .remove, .hold, .dotfiles, .preferences: false
             }
         }
 
         var item: Item? {
             switch self {
             case .tap, .dotfiles, .preferences: nil
-            case .install(let item), .update(let item), .replace(let item): item
+            case .install(let item), .update(let item), .replace(let item), .remove(let item), .hold(let item): item
             }
         }
     }
@@ -64,11 +69,35 @@ struct InstallPlan: Sendable {
         self.alreadyInstalled = alreadyInstalled
     }
 
-    /// Applying a saved setup: its packages (planned like any selection),
-    /// then its dotfiles, then its Mac preferences, which may configure
-    /// apps installed a moment earlier.
-    init(setup: SavedSetup, packages: InstallPlan) {
-        var steps = packages.steps
+    /// Applying a saved setup: removals first (they may free up conflicts),
+    /// then its packages (planned like any selection), updates and holds
+    /// its policies ask for, then its dotfiles, then its Mac preferences,
+    /// which may configure apps installed a moment earlier.
+    ///
+    /// - Parameters:
+    ///   - packages: the plan for `setup.installs`.
+    ///   - held: apps casky already holds back.
+    init(setup: SavedSetup, packages: InstallPlan, installed: InstalledState = InstalledState(), updates: [Item: AvailableUpdate] = [:], held: Set<Item> = []) {
+        var steps = setup.items
+            .filter { setup.rule(for: $0) == .remove && installed.contains($0) }
+            .map { InstallStep(action: .remove($0), prerequisites: []) }
+        steps += packages.steps
+        let installing = Set(packages.steps.map(\.action))
+        for item in setup.items {
+            switch setup.rule(for: item) {
+            case .keepUpdated:
+                guard let update = updates[item], !update.isHeld else { continue }
+                steps.append(InstallStep(action: update.managed ? .update(item) : .replace(item), prerequisites: []))
+            case .hold:
+                let isHeld = if case .formula(let ref) = item { installed.pinned.contains(ref.fullName) } else { held.contains(item) }
+                // A tool that isn't installed can't be pinned yet.
+                let willInstall = installing.contains(.install(item))
+                guard !isHeld, item.kind != .formula || installed.contains(item) || willInstall else { continue }
+                steps.append(InstallStep(action: .hold(item), prerequisites: willInstall ? [.install(item)] : []))
+            case .remove, nil:
+                continue
+            }
+        }
         if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
             steps.append(InstallStep(action: .dotfiles(setup: setup.id, dotfiles), prerequisites: []))
         }

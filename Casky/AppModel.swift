@@ -85,6 +85,11 @@ final class AppModel {
     private let setupsFile: JSONFile<[SavedSetup]>
     private let tapsFile: JSONFile<[TapListing]>
     private let historyFile: JSONFile<[RunRecord]>
+    private let heldFile: JSONFile<[Item]>
+    /// Apps a setup holds at their version. Homebrew can't pin casks, so
+    /// casky remembers them and leaves them out of Update All. (Formulae
+    /// are pinned in Homebrew itself.)
+    private(set) var heldItems: Set<Item> = []
     let dotfilesDirectory: URL
     let dotfilesBackupsDirectory: URL
     let preferencesBackupsDirectory: URL
@@ -107,6 +112,7 @@ final class AppModel {
         setupsFile = JSONFile(file: dataDirectory.appending(path: "setups.json"))
         tapsFile = JSONFile(file: dataDirectory.appending(path: "taps.json"))
         historyFile = JSONFile(file: dataDirectory.appending(path: "history.json"))
+        heldFile = JSONFile(file: dataDirectory.appending(path: "held.json"))
         dotfilesDirectory = dataDirectory.appending(path: "dotfiles")
         dotfilesBackupsDirectory = dataDirectory.appending(path: "dotfile-backups")
         preferencesBackupsDirectory = dataDirectory.appending(path: "preference-backups")
@@ -125,6 +131,7 @@ final class AppModel {
         } catch {
             historyLoadError = "Couldn't read your install history (\(historyFile.file.path)): \(error.localizedDescription)"
         }
+        heldItems = Set((try? heldFile.load(empty: [])) ?? [])
         do {
             taps = try tapsFile.load(empty: [])
         } catch {
@@ -211,7 +218,18 @@ final class AppModel {
             let installed = installed
             found += await Task.detached { LocalApp.unmanagedUpdates(in: catalog.entries, installed: installed) }.value
         }
+        for index in found.indices where heldItems.contains(found[index].item) { found[index].isHeld = true }
         updates = Dictionary(found.map { ($0.item, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    func setHeld(_ item: Item, _ isHeld: Bool) {
+        if isHeld { heldItems.insert(item) } else { heldItems.remove(item) }
+        updates[item]?.isHeld = isHeld
+        do {
+            try heldFile.save(heldItems.sorted { $0.technicalName < $1.technicalName })
+        } catch {
+            alertMessage = "Couldn't save held apps: \(error.localizedDescription)"
+        }
     }
 
     func isInstalled(_ item: Item) -> Bool {
@@ -340,6 +358,18 @@ final class AppModel {
     func renameSetup(_ id: SavedSetup.ID, to name: String) {
         guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
         setups[index].name = Self.cleanName(name, fallback: setups[index].name)
+        persistSetups()
+    }
+
+    func setRule(_ rule: PackagePolicy.Rule?, for item: Item, in id: SavedSetup.ID) {
+        guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
+        setups[index].setRule(rule, for: item)
+        persistSetups()
+    }
+
+    func replace(_ item: Item, with replacement: Item, in id: SavedSetup.ID) {
+        guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
+        setups[index].replace(item, with: replacement)
         persistSetups()
     }
 

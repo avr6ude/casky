@@ -20,7 +20,7 @@ extension AppModel {
 
     /// What applying a saved setup would do right now.
     func previewPlan(for setup: SavedSetup) -> InstallPlan {
-        InstallPlan(setup: setup, packages: previewPlan(for: setup.items))
+        InstallPlan(setup: setup, packages: previewPlan(for: setup.installs), installed: installed, updates: updates, held: heldItems)
     }
 
     var isSetupRun: Bool {
@@ -87,6 +87,7 @@ extension AppModel {
                 run = nil
                 return
             }
+            if setup.policies?.contains(where: { $0.rule == .keepUpdated }) == true { await refreshUpdates() }
             run = RunState(plan: previewPlan(for: setup))
         }
 
@@ -116,6 +117,11 @@ extension AppModel {
 
     private func execute(_ step: InstallStep, with homebrew: Homebrew?) async -> RunState.Outcome {
         let (lines, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(1000))
+        if case .hold(let item) = step.action, item.kind != .formula {
+            setHeld(item, true)
+            currentOutput = ["casky leaves \(displayEntry(for: item).title) out of Update All from now on."]
+            return .installed
+        }
         let checkouts = dotfilesDirectory, dotfileBackups = dotfilesBackupsDirectory, preferenceBackups = preferencesBackupsDirectory
         let task = Task.detached { () async throws -> Int32 in
             defer { continuation.finish() }
