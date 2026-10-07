@@ -77,10 +77,13 @@ struct AppPreview: View {
 
         let sections = details.sections + (local.map { [AppDetails.Section(title: "On This Mac", facts: $0)] } ?? [])
         if !sections.isEmpty {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 16, alignment: .top), GridItem(.flexible(), spacing: 16, alignment: .top)],
-                      alignment: .leading, spacing: 16) {
-                ForEach(sections, id: \.self) { section in
-                    FactCard(section: section)
+            let columns = Self.balance(sections)
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(columns.indices, id: \.self) { column in
+                    VStack(spacing: 16) {
+                        ForEach(columns[column], id: \.self) { FactCard(section: $0) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
             }
         } else if model.isInstalled(entry.item), local == nil, entry.appBundleName != nil {
@@ -97,6 +100,25 @@ struct AppPreview: View {
                 ConsoleView(lines: caveats.components(separatedBy: "\n"), height: 120)
             }
         }
+    }
+
+    /// Two columns that stack independently, split so they end up as even
+    /// as possible (a card's height ≈ its fact count plus its title). There
+    /// are at most a handful of cards, so every split is tried; order is kept
+    /// within each column and the first card stays on the left.
+    static func balance(_ sections: [AppDetails.Section]) -> [[AppDetails.Section]] {
+        let heights = sections.map { $0.facts.count + 2 }
+        var best: (mask: Int, tallest: Int, difference: Int)?
+        for mask in stride(from: 0, to: 1 << sections.count, by: 2) {
+            var columns = [0, 0]
+            for index in sections.indices { columns[(mask >> index) & 1] += heights[index] }
+            let tallest = columns.max()!, difference = abs(columns[0] - columns[1])
+            if best == nil || (tallest, difference) < (best!.tallest, best!.difference) {
+                best = (mask, tallest, difference)
+            }
+        }
+        let mask = best?.mask ?? 0
+        return [0, 1].map { column in sections.indices.filter { (mask >> $0) & 1 == column }.map { sections[$0] } }
     }
 
     // MARK: Footer

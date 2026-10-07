@@ -482,3 +482,16 @@ import Testing
         #expect(!TouchIDForSudo.isEnabled(in: ""))
     }
 }
+
+@MainActor @Suite struct PreviewLayoutTests {
+    private func section(_ title: String, _ count: Int) -> AppDetails.Section {
+        AppDetails.Section(title: title, facts: (0..<count).map { AppDetails.Fact(label: "\($0)", value: "") })
+    }
+
+    @Test func balancesColumnsKeepingOrder() {
+        let columns = AppPreview.balance([section("Overview", 7), section("Requirements", 1), section("Popularity", 3), section("On This Mac", 8)])
+        #expect(columns.map { $0.map(\.title) } == [["Overview", "Popularity"], ["Requirements", "On This Mac"]])
+        #expect(AppPreview.balance([section("Only", 3)]).map(\.count) == [1, 0])
+        #expect(AppPreview.balance([]).map(\.count) == [0, 0])
+    }
+}
