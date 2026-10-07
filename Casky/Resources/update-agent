@@ -1,0 +1,35 @@
+#!/bin/sh
+# Daily update, run by launchd once it's turned on in casky's Settings.
+# Upgrades Homebrew apps (casks); apps that update themselves are left alone,
+# as with `brew upgrade --cask`. Runs unattended: an upgrade that needs the
+# Mac password fails and is logged instead of prompting.
+set -u
+
+log_dir="$HOME/Library/Logs/casky"
+log="$log_dir/update.log"
+mkdir -p "$log_dir"
+if [ -f "$log" ]; then
+  tail -n 2000 "$log" > "$log.tmp" && mv "$log.tmp" "$log"
+fi
+exec >> "$log" 2>&1 < /dev/null
+echo "== $(date '+%Y-%m-%d %H:%M:%S')"
+
+brew=""
+# CASKY_BREW is for testing this script; launchd never sets it.
+for candidate in "${CASKY_BREW:-}" "$(defaults read app.avrdude.Casky homebrewPath 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    brew="$candidate"
+    break
+  fi
+done
+if [ -z "$brew" ]; then
+  echo "Homebrew not found"
+  exit 1
+fi
+
+export PATH="$(dirname "$brew"):/usr/bin:/bin:/usr/sbin:/sbin"
+export HOMEBREW_NO_ENV_HINTS=1
+"$brew" update --quiet && "$brew" upgrade --cask --quiet
+status=$?
+echo "== finished with status $status"
+exit "$status"

@@ -6,6 +6,7 @@ A native macOS app for setting up a Mac: pick a kit or search, then install apps
 - Brewfile export and import (import reads plain entries only and never executes the file)
 - Shows what's already installed; installs one item at a time with live output, Stop and Retry
 - Asks for your Mac password in a native dialog only when an install needs it
+- Optional daily app updates (Settings), run by a launchd agent you can also turn off in Login Items
 
 Requires macOS 26 and Homebrew (casky offers to download the official installer if it's missing).
 

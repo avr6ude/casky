@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA0000000000000000000052 /* app.avrdude.Casky.updater.plist in Copy Launch Agents */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000050 /* app.avrdude.Casky.updater.plist */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		AA0000000000000000000024 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -16,9 +20,24 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		AA0000000000000000000053 /* Copy Launch Agents */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Library/LaunchAgents;
+			dstSubfolderSpec = 1;
+			files = (
+				AA0000000000000000000052 /* app.avrdude.Casky.updater.plist in Copy Launch Agents */,
+			);
+			name = "Copy Launch Agents";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		AA0000000000000000000004 /* Casky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Casky.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000005 /* CaskyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CaskyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000050 /* app.avrdude.Casky.updater.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = app.avrdude.Casky.updater.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +76,7 @@
 			children = (
 				AA0000000000000000000006 /* Casky */,
 				AA0000000000000000000007 /* CaskyTests */,
+				AA0000000000000000000051 /* Support */,
 				AA0000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -70,6 +90,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		AA0000000000000000000051 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000050 /* app.avrdude.Casky.updater.plist */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -80,6 +108,7 @@
 				AA0000000000000000000011 /* Sources */,
 				AA0000000000000000000012 /* Frameworks */,
 				AA0000000000000000000013 /* Resources */,
+				AA0000000000000000000053 /* Copy Launch Agents */,
 			);
 			buildRules = (
 			);
@@ -237,9 +266,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KTXT2JL8G5;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -251,7 +282,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.avrdude.Casky;
+				PRODUCT_BUNDLE_IDENTIFIER = app.avrdude.casky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
@@ -261,9 +292,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KTXT2JL8G5;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -275,7 +308,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.avrdude.Casky;
+				PRODUCT_BUNDLE_IDENTIFIER = app.avrdude.casky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};

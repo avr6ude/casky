@@ -1,9 +1,12 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @State private var error: String?
+    @State private var updateStatus = AutoUpdate.status
+    @State private var updateError: String?
 
     var body: some View {
         Form {
@@ -28,10 +31,52 @@ struct SettingsView: View {
                 Text("casky runs Homebrew with a clean environment. Proxy settings and HOMEBREW_* variables from your shell profile aren't applied.")
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                Toggle("Update apps automatically", isOn: Binding(
+                    get: { updateStatus == .enabled || updateStatus == .requiresApproval },
+                    set: setAutoUpdate
+                ))
+                if updateStatus == .requiresApproval {
+                    HStack {
+                        Text("Allow casky in Login Items to finish turning this on.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Login Items") { AutoUpdate.openLoginItemsSettings() }
+                    }
+                }
+                if let lastRun = AutoUpdate.lastRun {
+                    LabeledContent("Last run") {
+                        HStack {
+                            Text(lastRun.formatted(date: .abbreviated, time: .shortened))
+                            Button("Show Log") { NSWorkspace.shared.open(AutoUpdate.logURL) }
+                        }
+                    }
+                }
+                if let updateError {
+                    Text(updateError).foregroundStyle(.red).font(.callout)
+                }
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("Every day at 9:00, while you're logged in, casky upgrades your Homebrew apps. Apps that update themselves are skipped, and anything that needs your password is left for you.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+        .onAppear { updateStatus = AutoUpdate.status }
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func setAutoUpdate(_ enabled: Bool) {
+        do {
+            try AutoUpdate.setEnabled(enabled)
+            updateError = nil
+        } catch {
+            updateError = "Couldn't \(enabled ? "turn on" : "turn off") automatic updates: \(error.localizedDescription)"
+        }
+        updateStatus = AutoUpdate.status
     }
 
     private func choose() {
