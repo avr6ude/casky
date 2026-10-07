@@ -69,6 +69,9 @@ struct ItemRow: View {
                         .lineLimit(1)
                 }
             }
+            // Separators start at the name on every row; otherwise SwiftUI picks
+            // whichever text it finds first (e.g. "Installed") and they jump around.
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
 
             Spacer(minLength: 12)
 
