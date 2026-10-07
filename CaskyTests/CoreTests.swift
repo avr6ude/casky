@@ -424,3 +424,13 @@ import Testing
         #expect(WebIcons.previewImage(in: html, baseURL: URL(string: "https://example.com/app/")!)?.absoluteString == "https://example.com/og.png")
     }
 }
+
+@Suite struct TouchIDConfigTests {
+    @Test func detectsOnlyAnActivePamTidLine() throws {
+        let template = "# sudo_local: local config file\n# uncomment following line to enable Touch ID for sudo\n#auth       sufficient     pam_tid.so\n"
+        #expect(!TouchIDForSudo.isEnabled(in: template))
+        #expect(TouchIDForSudo.isEnabled(in: template.replacingOccurrences(of: "#auth", with: "auth")))
+        #expect(TouchIDForSudo.isEnabled(in: "auth optional /opt/homebrew/lib/pam/pam_reattach.so\nauth sufficient pam_tid.so\n"))
+        #expect(!TouchIDForSudo.isEnabled(in: ""))
+    }
+}

@@ -7,6 +7,8 @@ struct SettingsView: View {
     @State private var error: String?
     @State private var updateStatus = AutoUpdate.status
     @State private var updateError: String?
+    @State private var touchID = TouchIDForSudo.isEnabled
+    @State private var touchIDError: String?
 
     var body: some View {
         Form {
@@ -29,6 +31,21 @@ struct SettingsView: View {
                 Text("Homebrew")
             } footer: {
                 Text("casky runs Homebrew with a clean environment. Proxy settings and HOMEBREW_* variables from your shell profile aren't applied.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle("Use Touch ID for admin prompts", isOn: Binding(get: { touchID }, set: setTouchID))
+                    .disabled(!TouchIDForSudo.isAvailable)
+                if let touchIDError {
+                    Text(touchIDError).foregroundStyle(.red).font(.callout)
+                }
+            } header: {
+                Text("Admin Prompts")
+            } footer: {
+                Text(TouchIDForSudo.isAvailable
+                     ? "Installs that need admin rights ask for your fingerprint instead of your password. This turns on Touch ID for sudo on this Mac (in /etc/pam.d/sudo_local), so it applies in Terminal too."
+                     : "This Mac has no Touch ID, so admin prompts ask for your password.")
                     .foregroundStyle(.secondary)
             }
 
@@ -64,9 +81,26 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { updateStatus = AutoUpdate.status }
+        .onAppear {
+            updateStatus = AutoUpdate.status
+            touchID = TouchIDForSudo.isEnabled
+        }
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func setTouchID(_ enabled: Bool) {
+        Task {
+            do {
+                try await TouchIDForSudo.setEnabled(enabled)
+                touchIDError = nil
+            } catch ToolError.failed(_, _, let stderr) where stderr.contains("-128") {
+                // Cancelled in the authorization dialog.
+            } catch {
+                touchIDError = "Couldn't change Touch ID for admin prompts: \(AppModel.describe(error))"
+            }
+            touchID = TouchIDForSudo.isEnabled
+        }
     }
 
     private func setAutoUpdate(_ enabled: Bool) {

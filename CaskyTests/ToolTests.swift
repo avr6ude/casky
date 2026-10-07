@@ -91,3 +91,26 @@ private final class LineCollector: @unchecked Sendable {
     var all: [String] { lock.withLock { lines } }
     func append(_ line: String) { lock.withLock { lines.append(line) } }
 }
+
+@Suite struct TouchIDScriptTests {
+    /// Runs the exact root script on a copy of Apple's template, unprivileged.
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: "/etc/pam.d/sudo_local.template")))
+    func togglesCleanlyFromApplesTemplate() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "casky-pam-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appending(path: "sudo_local")
+        try FileManager.default.copyItem(atPath: "/etc/pam.d/sudo_local.template", toPath: file.path + ".template")
+        func run(_ enabled: Bool) async throws -> String {
+            _ = try await ToolRunner.run(URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", TouchIDForSudo.script(enabled: enabled, file: file.path)], environment: [:])
+            return try String(contentsOf: file, encoding: .utf8)
+        }
+
+        let on = try await run(true)
+        #expect(TouchIDForSudo.isEnabled(in: on))
+        #expect(try await run(true) == on)
+        let off = try await run(false)
+        #expect(!TouchIDForSudo.isEnabled(in: off))
+        #expect(try await run(true) == on)
+        #expect(on.components(separatedBy: "pam_tid.so").count == 2)
+    }
+}
