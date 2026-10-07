@@ -36,6 +36,9 @@ final class AppModel {
     /// is never overwritten with an empty list.
     private(set) var setupsLoadError: String?
 
+    private(set) var history: [RunRecord] = []
+    private(set) var historyLoadError: String?
+
     private(set) var taps: [TapListing] = []
     /// Same contract as `setupsLoadError`, for taps.json.
     private(set) var tapsLoadError: String?
@@ -67,6 +70,7 @@ final class AppModel {
     private let tapFetch: TapFetch
     private let setupsFile: JSONFile<[SavedSetup]>
     private let tapsFile: JSONFile<[TapListing]>
+    private let historyFile: JSONFile<[RunRecord]>
     /// App Store results seen so far, so selected App Store items keep their
     /// details. Bounded by what the user searched for.
     private var appStoreEntries: [Item: CatalogEntry] = [:]
@@ -84,6 +88,7 @@ final class AppModel {
         self.tapFetch = tapFetch
         setupsFile = JSONFile(file: dataDirectory.appending(path: "setups.json"))
         tapsFile = JSONFile(file: dataDirectory.appending(path: "taps.json"))
+        historyFile = JSONFile(file: dataDirectory.appending(path: "history.json"))
         self.defaults = defaults
         self.locateHomebrew = locateHomebrew
         homebrew = locateHomebrew(defaults.string(forKey: Self.homebrewPathKey))
@@ -92,6 +97,11 @@ final class AppModel {
             setups = try setupsFile.load(empty: [])
         } catch {
             setupsLoadError = "Couldn't read your saved setups (\(setupsFile.file.path)): \(error.localizedDescription)"
+        }
+        do {
+            history = try historyFile.load(empty: [])
+        } catch {
+            historyLoadError = "Couldn't read your install history (\(historyFile.file.path)): \(error.localizedDescription)"
         }
         do {
             taps = try tapsFile.load(empty: [])
@@ -275,6 +285,22 @@ final class AppModel {
     private static func cleanName(_ name: String, fallback: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    // MARK: History
+
+    func record(_ run: RunState) {
+        guard !run.plan.steps.isEmpty else { return }
+        let record = RunRecord(run: run, date: .now) { action in
+            if case .install(let item) = action { displayEntry(for: item).title } else { Self.itemName(action) }
+        }
+        history = RunRecord.appending(record, to: history)
+        guard historyLoadError == nil else { return }
+        do {
+            try historyFile.save(history)
+        } catch {
+            alertMessage = "Couldn't save the install history: \(error.localizedDescription)"
+        }
     }
 
     // MARK: Taps

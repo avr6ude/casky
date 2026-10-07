@@ -4,6 +4,7 @@ import SwiftUI
 enum Destination: Hashable {
     case home
     case selection
+    case history
     case browse(Item.Kind)
     case kit(String)
     case setup(UUID)
@@ -48,6 +49,8 @@ struct RootView: View {
             HomeView { destination = .kit($0.slug) }
         case .selection:
             SelectionView()
+        case .history:
+            HistoryView()
         case .browse(let kind):
             BrowseView(kind: kind).id(kind)
         case .kit(let slug):
@@ -80,6 +83,7 @@ private struct Sidebar: View {
             Label("Selected", systemImage: "checklist")
                 .badge(model.selection.count)
                 .tag(Destination.selection)
+            Label("History", systemImage: "clock.arrow.circlepath").tag(Destination.history)
 
             Section("Browse") {
                 ForEach([Item.Kind.cask, .formula, .mas], id: \.self) { kind in
@@ -157,6 +161,10 @@ private struct StatusFooter: View {
                     Image(systemName: "exclamationmark.triangle")
                 }
                 .help(error)
+            }
+            if let error = model.historyLoadError {
+                Label("Install history couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
+                    .help(error)
             }
             if let error = model.tapsLoadError {
                 Label("Taps couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")

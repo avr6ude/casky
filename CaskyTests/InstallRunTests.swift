@@ -60,6 +60,11 @@ import Testing
 
         model.dismissRun()
         #expect(model.run == nil)
+
+        // The run is in the history, and the history survives a relaunch.
+        let record = try #require(self.model(try fakeBrew()).history.first)
+        #expect(record.installedCount == 3 && record.failedCount == 1 && record.alreadyInstalled == 1)
+        #expect(record.steps.map(\.title) == ["x/y", "tool", "good", "bad"])
     }
 
     @Test func settingsAcceptOnlyHomebrew() async throws {

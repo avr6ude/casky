@@ -31,6 +31,7 @@ extension AppModel {
             let outcome = await execute(step, with: homebrew)
             run?.finish(outcome)
         }
+        if let run { record(run) }
         await refreshInstalled()
     }
 
