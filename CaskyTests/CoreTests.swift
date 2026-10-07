@@ -353,3 +353,29 @@ import Testing
         #expect(run.nextStep() == nil && run.isFinished)
     }
 }
+
+@Suite struct WebIconsTests {
+    @Test func ranksDeclaredIconsBySizeAndPutsThemedOnesLast() {
+        let html = Data("""
+        <!doctype html><html><head>
+        <link rel="icon" href="/favicon-32.png" sizes="32x32">
+        <link rel="icon" href="/light.svg" media="(prefers-color-scheme: light)">
+        <link rel="apple-touch-icon" href="/touch.png">
+        <link rel="icon" href="https://cdn.example.com/icon-196.png" sizes="196x196" type="image/png">
+        <link rel="stylesheet" href="/style.css">
+        <link rel="icon" href="http://insecure.example.com/x.png" sizes="512x512">
+        </head><body><p>Hi</body></html>
+        """.utf8)
+        let icons = WebIcons.declared(in: html, baseURL: URL(string: "https://example.com/product/")!)
+        #expect(icons.map(\.absoluteString) == [
+            "https://cdn.example.com/icon-196.png",
+            "https://example.com/touch.png",
+            "https://example.com/favicon-32.png",
+            "https://example.com/light.svg",
+        ])
+    }
+
+    @Test func toleratesPagesWithoutIcons() {
+        #expect(WebIcons.declared(in: Data("not html at all".utf8), baseURL: URL(string: "https://example.com")!).isEmpty)
+    }
+}

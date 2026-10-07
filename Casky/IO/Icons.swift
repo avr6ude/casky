@@ -60,7 +60,7 @@ final class IconStore {
             return nil
         }
 
-        for (url, source) in Self.candidates(entry) {
+        for (url, source) in await candidates(entry) {
             guard let data = await download(url), let image = NSImage(data: data), image.isValid,
                   image.size.width >= 16 else { continue }
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -72,26 +72,26 @@ final class IconStore {
         return nil
     }
 
-    /// Published artwork first; otherwise the homepage's site root, where
-    /// most vendors serve a 180px `apple-touch-icon.png`, then `favicon.ico`.
+    /// Published artwork first. Otherwise the icons the homepage declares,
+    /// then the conventional `/apple-touch-icon.png` and `/favicon.ico`.
     /// A GitHub homepage would only yield GitHub's logo, so the project
     /// owner's avatar stands in for it.
-    private static func candidates(_ entry: CatalogEntry) -> [(URL, Source)] {
+    private func candidates(_ entry: CatalogEntry) async -> [(URL, Source)] {
         if let artwork = entry.iconURL { return [(artwork, .published)] }
         guard let homepage = entry.homepage, let host = homepage.host(), homepage.scheme == "https" else { return [] }
         if host == "github.com", let owner = homepage.pathComponents.dropFirst().first,
            let avatar = URL(string: "https://github.com/\(owner).png?size=128") {
             return [(avatar, .website)]
         }
-        return ["apple-touch-icon.png", "favicon.ico"].compactMap { name in
-            URL(string: "https://\(host)/\(name)").map { ($0, .website) }
-        }
+        let declared = await download(homepage, limit: 2_000_000).map { WebIcons.declared(in: $0, baseURL: homepage) } ?? []
+        let conventional = ["apple-touch-icon.png", "favicon.ico"].compactMap { URL(string: "https://\(host)/\($0)") }
+        return (declared + conventional).uniqued().map { ($0, .website) }
     }
 
-    private func download(_ url: URL) async -> Data? {
+    private func download(_ url: URL, limit: Int = 1_000_000) async -> Data? {
         guard let (data, response) = try? await session.data(from: url),
               (response as? HTTPURLResponse)?.statusCode == 200,
-              data.count < 1_000_000 else { return nil }
+              data.count < limit else { return nil }
         return data
     }
 
