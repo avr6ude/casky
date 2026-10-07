@@ -10,13 +10,26 @@ struct InstalledState: Sendable {
     /// App Store id → name.
     var masApps: [Int: String] = [:]
     var taps: Set<String> = []
+    /// Lowercased names of the `.app` bundles in the Applications folders,
+    /// however they got there.
+    var appBundles: Set<String> = []
 
+    /// Installed through Homebrew or `mas`.
     func contains(_ item: Item) -> Bool {
         switch item {
         case .formula(let ref): formulae.contains(ref.fullName)
         case .cask(let ref): casks.contains(ref.fullName)
         case .mas(let id, _): masApps[id] != nil
         }
+    }
+
+    /// Installed through Homebrew or `mas`, or, for apps, present in an
+    /// Applications folder: a drag-installed VS Code counts, and Homebrew
+    /// would refuse to install over it anyway.
+    func isPresent(_ item: Item, appBundle: String?) -> Bool {
+        if contains(item) { return true }
+        guard let appBundle else { return false }
+        return appBundles.contains(appBundle.lowercased())
     }
 
     /// Everything the user installed on purpose, for "Save this Mac as a

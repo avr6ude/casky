@@ -9,7 +9,7 @@ import Testing
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
         let kit = Kit(slug: "k", symbol: "star", title: "K", summary: "", items: [.cask(try! Ref(parsing: "a")), .mas(id: 1, name: "One")])
-        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [kit])
+        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, applicationFolders: [], kits: [kit])
     }
 
     @Test func toggleKeepsSelectionOrderAndMembership() throws {
@@ -43,7 +43,7 @@ import Testing
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [FailingProtocol.self]
         fetch.session = URLSession(configuration: config)
-        let model = AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [])
+        let model = AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, applicationFolders: [], kits: [])
         await model.start()
         guard case .failed = model.catalogState else { Issue.record("expected failed state"); return }
     }
@@ -56,7 +56,7 @@ import Testing
     private func model() -> AppModel {
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
-        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, kits: [])
+        return AppModel(fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in nil }, applicationFolders: [], kits: [])
     }
 
     @Test func savedSetupsSurviveRelaunch() throws {
@@ -93,6 +93,33 @@ import Testing
 
         model.importBrewfile(at: directory.appending(path: "missing"))
         #expect(model.alertMessage != nil)
+    }
+}
+
+@MainActor @Suite struct InstalledAppsTests {
+    private let directory = FileManager.default.temporaryDirectory.appending(path: "casky-tests-\(UUID().uuidString)")
+
+    @Test func appsInApplicationsCountAsInstalledAndAreSkipped() async throws {
+        let applications = directory.appending(path: "Applications")
+        try FileManager.default.createDirectory(at: applications.appending(path: "Visual Studio Code.app"), withIntermediateDirectories: true)
+        var fetch = CatalogFetch()
+        fetch.cacheFile = directory.appending(path: "catalog.json")
+        let model = AppModel(
+            fetch: fetch, dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!,
+            locateHomebrew: { _ in nil }, applicationFolders: [applications], kits: []
+        )
+        let code = Item.cask(try Ref(parsing: "visual-studio-code"))
+        let xcode = Item.mas(id: 497799835, name: "Xcode")
+        let entry = CatalogEntry(item: code, title: "Visual Studio Code", summary: nil, homepage: nil, installs: 0, needsAdmin: false, appBundleName: "Visual Studio Code.app")
+        try fetch.store([entry], fetchedAt: .now)
+        await model.start()
+
+        #expect(model.isInstalled(code) && !model.isManaged(code))
+        #expect(!model.isInstalled(xcode))
+        model.toggle(code)
+        model.toggle(xcode)
+        #expect(model.previewPlan().alreadyInstalled == [code])
+        #expect(model.previewPlan().steps.map(\.action).contains(.install(xcode)))
     }
 }
 

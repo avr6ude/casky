@@ -31,7 +31,7 @@ import Testing
         return AppModel(
             fetch: fetch, tapFetch: TapFetch(session: URLSession(configuration: config)),
             dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!,
-            locateHomebrew: { _ in nil }, kits: []
+            locateHomebrew: { _ in nil }, applicationFolders: [], kits: []
         )
     }
 

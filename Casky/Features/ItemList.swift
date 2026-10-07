@@ -13,7 +13,8 @@ struct ItemList: View {
                 ItemRow(
                     entry: entry,
                     isSelected: model.isSelected(entry.item),
-                    isInstalled: model.installed.contains(entry.item)
+                    isInstalled: model.isInstalled(entry.item),
+                    isManaged: model.isManaged(entry.item)
                 ) {
                     model.toggle(entry.item)
                 }
@@ -40,6 +41,7 @@ struct ItemRow: View {
     let entry: CatalogEntry
     let isSelected: Bool
     let isInstalled: Bool
+    var isManaged = true
     let toggle: () -> Void
 
     var body: some View {
@@ -82,6 +84,7 @@ struct ItemRow: View {
                 Label("Installed", systemImage: "checkmark.circle.fill")
                     .font(.callout)
                     .foregroundStyle(.green)
+                    .help(isManaged ? "Installed with Homebrew" : "Installed outside Homebrew, so casky leaves it alone")
             }
 
             Text(entry.item.kind.label)

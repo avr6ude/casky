@@ -22,10 +22,13 @@ struct InstallPlan: Sendable {
     /// Selected items skipped because they are already installed.
     let alreadyInstalled: [Item]
 
-    init(selection: [Item], installed: InstalledState, needsAdmin: Set<Item> = []) {
+    /// - Parameter appBundles: the `.app` each selected app installs, so apps
+    ///   already in an Applications folder are skipped too.
+    init(selection: [Item], installed: InstalledState, appBundles: [Item: String] = [:], needsAdmin: Set<Item> = []) {
         let selection = selection.uniqued()
-        let pending = selection.filter { !installed.contains($0) }
-        alreadyInstalled = selection.filter { installed.contains($0) }
+        let isPresent = { installed.isPresent($0, appBundle: appBundles[$0]) }
+        let pending = selection.filter { !isPresent($0) }
+        alreadyInstalled = selection.filter(isPresent)
 
         let tapsToAdd = pending.compactMap(\.tap).uniqued().filter { !installed.taps.contains($0) }
         let masTool = Item.formula(.masTool)

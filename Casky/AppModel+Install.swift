@@ -3,7 +3,12 @@ import Foundation
 extension AppModel {
     /// What Install would do right now, for the confirmation dialog.
     func previewPlan() -> InstallPlan {
-        InstallPlan(selection: selection, installed: installed, needsAdmin: catalog?.adminItems ?? [])
+        let bundles = selection.compactMap { item in entry(for: item)?.appBundleName.map { (item, $0) } }
+        return InstallPlan(
+            selection: selection, installed: installed,
+            appBundles: Dictionary(bundles, uniquingKeysWith: { first, _ in first }),
+            needsAdmin: catalog?.adminItems ?? []
+        )
     }
 
     /// Installs the selection one step at a time. Retrying is the same call:

@@ -27,6 +27,7 @@ final class AppModel {
     /// while casky is open is picked up when the window comes back.
     private(set) var homebrew: Homebrew?
     private let locateHomebrew: (_ userPath: String?) -> Homebrew?
+    private let applicationFolders: [URL]
     private let defaults: UserDefaults
 
     let kits: [Kit]
@@ -82,6 +83,7 @@ final class AppModel {
         dataDirectory: URL = URL.applicationSupportDirectory.appending(path: "casky"),
         defaults: UserDefaults = .standard,
         locateHomebrew: @escaping (_ userPath: String?) -> Homebrew? = { Homebrew(userPath: $0) },
+        applicationFolders: [URL] = InstalledApps.defaultFolders,
         kits: [Kit] = AppModel.bundledKits()
     ) {
         self.fetch = fetch
@@ -91,6 +93,7 @@ final class AppModel {
         historyFile = JSONFile(file: dataDirectory.appending(path: "history.json"))
         self.defaults = defaults
         self.locateHomebrew = locateHomebrew
+        self.applicationFolders = applicationFolders
         homebrew = locateHomebrew(defaults.string(forKey: Self.homebrewPathKey))
         self.kits = kits
         do {
@@ -148,23 +151,42 @@ final class AppModel {
         }
     }
 
+    /// Apps in the Applications folders always count; Homebrew and `mas`
+    /// add what they manage when available.
     func refreshInstalled() async {
+        let folders = applicationFolders
+        let bundles = await Task.detached { InstalledApps.bundleNames(in: folders) }.value
         if homebrew == nil { homebrew = locateHomebrew(homebrewPathOverride) }
-        guard let homebrew else { return }
+        guard let homebrew else {
+            installed.appBundles = bundles
+            return
+        }
         do {
-            installed = try await homebrew.installedState()
+            var state = try await homebrew.installedState()
+            state.appBundles = bundles
+            installed = state
             installedError = nil
         } catch {
+            installed.appBundles = bundles
             installedError = Self.describe(error)
         }
     }
+
+    func isInstalled(_ item: Item) -> Bool {
+        installed.isPresent(item, appBundle: entry(for: item)?.appBundleName)
+    }
+
+    /// Whether Homebrew or `mas` manages it, as opposed to an app that was
+    /// installed some other way.
+    func isManaged(_ item: Item) -> Bool { installed.contains(item) }
 
     // MARK: Entries
 
     func entry(for item: Item) -> CatalogEntry? {
         if case .mas(let id, let name) = item {
             return appStoreEntries[item]
-                ?? CatalogEntry(item: item, title: name, summary: nil, homepage: URL(string: "https://apps.apple.com/app/id\(id)"), installs: 0, needsAdmin: false)
+                ?? CatalogEntry(item: item, title: name, summary: nil, homepage: URL(string: "https://apps.apple.com/app/id\(id)"),
+                                installs: 0, needsAdmin: false, appBundleName: "\(name).app")
         }
         if let entry = catalog?.entry(for: item) { return entry }
         // Items from an added tap aren't in the Homebrew catalog.
@@ -233,7 +255,7 @@ final class AppModel {
         selectedSet = []
     }
 
-    var installedSelectionCount: Int { selection.filter(installed.contains).count }
+    var installedSelectionCount: Int { selection.filter(isInstalled).count }
 
     // MARK: Setups
 
