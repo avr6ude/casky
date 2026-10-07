@@ -211,7 +211,10 @@ struct SearchResults: View {
     @Environment(AppModel.self) private var model
     let query: String
     let kind: Item.Kind?
+    /// Every Homebrew match, ranked; the list shows `visibleCount` of them
+    /// and grows as you scroll.
     @State private var homebrewResults: [CatalogEntry] = []
+    @State private var visibleCount = Self.pageSize
     @State private var appStoreResults: [CatalogEntry] = []
     @State private var appStoreError: String?
     @State private var isSearching = false
@@ -219,7 +222,8 @@ struct SearchResults: View {
     private var includesHomebrew: Bool { kind != .mas }
     private var includesAppStore: Bool { kind == nil || kind == .mas }
     private var term: String { query.trimmingCharacters(in: .whitespaces) }
-    private var results: [CatalogEntry] { homebrewResults + appStoreResults }
+    private static let pageSize = 100
+    private var results: [CatalogEntry] { Array(homebrewResults.prefix(visibleCount)) + appStoreResults }
 
     var body: some View {
         Group {
@@ -260,7 +264,9 @@ struct SearchResults: View {
                         .padding(.vertical, 8)
                     Divider()
                 }
-                ItemList(entries: results)
+                ItemList(entries: results) {
+                    if visibleCount < homebrewResults.count { visibleCount += Self.pageSize }
+                }
             }
         }
     }
@@ -275,9 +281,10 @@ struct SearchResults: View {
         defer { isSearching = false }
         if includesHomebrew, let catalog = model.catalog {
             let query = query, kind = kind
-            let found = await Task.detached { catalog.search(query, kind: kind) }.value
+            let found = await Task.detached { catalog.search(query, kind: kind, limit: nil) }.value
             guard !Task.isCancelled else { return }
             homebrewResults = found
+            visibleCount = Self.pageSize
         }
         guard includesAppStore else { return }
         guard !term.isEmpty else {

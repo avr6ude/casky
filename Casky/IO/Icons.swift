@@ -1,22 +1,24 @@
 import AppKit
+import ImageIO
 
 /// Finds a real icon for an app: the installed `.app` itself, artwork the
-/// App Store publishes, or the vendor site's touch icon. Downloads are cached
-/// in Caches/casky/icons; misses are remembered for a week so scrolling
-/// doesn't refetch them. Command-line tools have no icon.
-@MainActor
-final class IconStore {
+/// App Store publishes, or the vendor site's icons. Everything — file checks,
+/// downloads, decoding — happens off the main thread, and images come back
+/// as thumbnails at the size they're drawn, so scrolling never decodes or
+/// scales a 1024px icon. Downloads are cached in Caches/casky/icons; misses
+/// are remembered for a week. Command-line tools have no icon.
+actor IconStore {
     static let shared = IconStore()
 
-    enum Source { case installedApp, published, website }
+    enum Source: Sendable { case installedApp, published, website }
 
-    struct Icon {
-        let image: NSImage
+    struct Icon: Sendable {
+        let image: CGImage
         let source: Source
     }
 
-    private let memory = NSCache<NSString, NSImageBox>()
-    private var inFlight: [Item: Task<Icon?, Never>] = [:]
+    private let memory = NSCache<NSString, IconBox>()
+    private var inFlight: [String: Task<Icon?, Never>] = [:]
     private let directory = URL.cachesDirectory.appending(path: "casky/icons")
     private let session: URLSession = {
         let configuration = URLSessionConfiguration.default
@@ -24,50 +26,63 @@ final class IconStore {
         return URLSession(configuration: configuration)
     }()
 
-    func icon(for entry: CatalogEntry) async -> Icon? {
-        if case .formula = entry.item { return nil }
-        if let installed = installedIcon(entry) { return installed }
-        let key = Self.key(entry.item) as NSString
-        if let cached = memory.object(forKey: key) { return cached.icon }
-        if let running = inFlight[entry.item] { return await running.value }
+    init() {
+        memory.countLimit = 2000
+    }
 
-        let task = Task { await load(entry) }
-        inFlight[entry.item] = task
+    /// - Parameter pixelSize: the drawn size in pixels (points × 2).
+    func icon(for entry: CatalogEntry, pixelSize: Int) async -> Icon? {
+        if case .formula = entry.item { return nil }
+        // Looked up every time (cheap): an app installed a minute ago should
+        // show its own icon right away.
+        if let app = installedApp(entry) {
+            return await cached("app:\(app.path):\(pixelSize)") {
+                Self.thumbnail(of: NSWorkspace.shared.icon(forFile: app.path), pixelSize: pixelSize)
+                    .map { Icon(image: $0, source: .installedApp) }
+            }
+        }
+        return await cached("\(Self.key(entry.item)):\(pixelSize)") {
+            guard let (data, source) = await self.data(for: entry) else { return nil }
+            return Self.thumbnail(of: data, pixelSize: pixelSize).map { Icon(image: $0, source: source) }
+        }
+    }
+
+    /// Memory cache plus de-duplication of concurrent requests for one key.
+    private func cached(_ key: String, load: @escaping @Sendable () async -> Icon?) async -> Icon? {
+        if let box = memory.object(forKey: key as NSString) { return box.icon }
+        if let running = inFlight[key] { return await running.value }
+        let task = Task { await load() }
+        inFlight[key] = task
         let icon = await task.value
-        inFlight[entry.item] = nil
-        memory.setObject(NSImageBox(icon), forKey: key)
+        inFlight[key] = nil
+        memory.setObject(IconBox(icon), forKey: key as NSString)
         return icon
     }
 
-    /// Checked on every call, not cached: an app installed a minute ago
-    /// should show its own icon right away.
-    private func installedIcon(_ entry: CatalogEntry) -> Icon? {
+    private func installedApp(_ entry: CatalogEntry) -> URL? {
         guard let bundle = entry.appBundleName else { return nil }
-        let candidates = [URL(fileURLWithPath: "/Applications"), URL.homeDirectory.appending(path: "Applications")]
+        return [URL(fileURLWithPath: "/Applications"), URL.homeDirectory.appending(path: "Applications")]
             .map { $0.appending(path: bundle) }
-        guard let app = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else { return nil }
-        return Icon(image: NSWorkspace.shared.icon(forFile: app.path), source: .installedApp)
+            .first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
-    private func load(_ entry: CatalogEntry) async -> Icon? {
+    /// Original image bytes, from the disk cache or downloaded.
+    private func data(for entry: CatalogEntry) async -> (Data, Source)? {
         let file = directory.appending(path: Self.key(entry.item))
         let miss = file.appendingPathExtension("miss")
-        if let image = NSImage(contentsOf: file) {
-            return Icon(image: image, source: entry.iconURL != nil ? .published : .website)
-        }
+        let cachedSource: Source = entry.iconURL != nil ? .published : .website
+        if let data = try? Data(contentsOf: file) { return (data, cachedSource) }
         if let date = (try? FileManager.default.attributesOfItem(atPath: miss.path))?[.modificationDate] as? Date,
            Date.now.timeIntervalSince(date) < 7 * 24 * 60 * 60 {
             return nil
         }
 
-        for (url, source) in await candidates(entry) {
-            guard let data = await download(url), let image = NSImage(data: data), image.isValid,
-                  image.size.width >= 16 else { continue }
-            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try? data.write(to: file, options: .atomic)
-            return Icon(image: image, source: source)
-        }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for (url, source) in await candidates(entry) {
+            guard let data = await download(url), Self.thumbnail(of: data, pixelSize: 16) != nil else { continue }
+            try? data.write(to: file, options: .atomic)
+            return (data, source)
+        }
         FileManager.default.createFile(atPath: miss.path, contents: nil)
         return nil
     }
@@ -95,6 +110,27 @@ final class IconStore {
         return data
     }
 
+    /// Downscaled with ImageIO (PNG, JPEG, ICO, ...); other formats such as
+    /// SVG go through NSImage.
+    private static func thumbnail(of data: Data, pixelSize: Int) -> CGImage? {
+        if let source = CGImageSourceCreateWithData(data as CFData, nil),
+           let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+               kCGImageSourceCreateThumbnailFromImageAlways: true,
+               kCGImageSourceCreateThumbnailWithTransform: true,
+               kCGImageSourceThumbnailMaxPixelSize: pixelSize,
+           ] as CFDictionary) {
+            return image
+        }
+        return NSImage(data: data).flatMap { thumbnail(of: $0, pixelSize: pixelSize) }
+    }
+
+    /// Picks the image representation closest to the size, as AppKit does
+    /// when drawing an app icon.
+    private static func thumbnail(of image: NSImage, pixelSize: Int) -> CGImage? {
+        var rect = CGRect(x: 0, y: 0, width: pixelSize, height: pixelSize)
+        return image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+    }
+
     private static func key(_ item: Item) -> String {
         switch item {
         case .cask(let ref): "cask-" + ref.fullName.replacingOccurrences(of: "/", with: "_")
@@ -105,7 +141,7 @@ final class IconStore {
 }
 
 /// NSCache needs a class value; also remembers misses (nil icon).
-final class NSImageBox {
+final class IconBox: @unchecked Sendable {
     let icon: IconStore.Icon?
     init(_ icon: IconStore.Icon?) { self.icon = icon }
 }

@@ -7,6 +7,8 @@ import SwiftUI
 struct ItemList: View {
     @Environment(AppModel.self) private var model
     let entries: [CatalogEntry]
+    /// Called when the last row scrolls into view, to load more.
+    var onReachEnd: (() -> Void)?
     @State private var highlighted = Set<Item>()
 
     var body: some View {
@@ -22,6 +24,9 @@ struct ItemList: View {
                     model.toggle(entry.item)
                 }
                 .tag(entry.item)
+                .onAppear {
+                    if entry.id == entries.last?.id { onReachEnd?() }
+                }
             }
         }
         .onKeyPress(.space) {
@@ -148,7 +153,7 @@ struct ItemIcon: View {
     var body: some View {
         Group {
             if let icon {
-                let image = Image(nsImage: icon.image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                let image = Image(decorative: icon.image, scale: 2).resizable().aspectRatio(contentMode: .fit)
                 if icon.source == .installedApp {
                     image
                 } else {
@@ -162,6 +167,6 @@ struct ItemIcon: View {
             }
         }
         .frame(width: size, height: size)
-        .task(id: entry.item) { icon = await IconStore.shared.icon(for: entry) }
+        .task(id: entry.item) { icon = await IconStore.shared.icon(for: entry, pixelSize: Int(size * 2)) }
     }
 }

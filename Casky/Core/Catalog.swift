@@ -38,7 +38,8 @@ struct Catalog: Sendable {
     /// Ranked by match quality (exact, prefix, substring of name, then
     /// substring of description), then by popularity. An empty query lists
     /// the most popular entries.
-    func search(_ query: String, kind: Item.Kind? = nil, limit: Int = 200) -> [CatalogEntry] {
+    /// `limit` nil returns every match.
+    func search(_ query: String, kind: Item.Kind? = nil, limit: Int? = 200) -> [CatalogEntry] {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
         var hits: [(rank: Int, entry: CatalogEntry)] = []
         for (key, entry) in zip(searchKeys, entries) where kind == nil || entry.item.kind == kind {
@@ -47,7 +48,7 @@ struct Catalog: Sendable {
         hits.sort {
             ($0.rank, -$0.entry.installs, $0.entry.title) < ($1.rank, -$1.entry.installs, $1.entry.title)
         }
-        return hits.prefix(limit).map(\.entry)
+        return hits.prefix(limit ?? hits.count).map(\.entry)
     }
 
     private struct SearchKey: Sendable {
