@@ -408,7 +408,7 @@ private struct InstallConfirmation: ViewModifier {
     private func summary(plan: InstallPlan, needsPassword: Int, hasAppStore: Bool) -> String {
         var lines = ["Homebrew and the App Store will install these on this Mac."]
         if !plan.alreadyInstalled.isEmpty { lines.append("\(plan.alreadyInstalled.count) already installed will be skipped.") }
-        if needsPassword > 0 { lines.append("\(needsPassword) will ask for your Mac password.") }
+        if needsPassword > 0 { lines.append("\(needsPassword) need admin rights (Touch ID or your Mac password).") }
         if hasAppStore { lines.append("App Store apps need you to be signed in to the App Store.") }
         return lines.joined(separator: "\n")
     }

@@ -56,10 +56,13 @@ struct ItemRow: View {
                     Text(entry.title)
                         .font(.body.weight(.medium))
                     if entry.needsAdmin {
-                        Label("Needs your password", systemImage: "lock.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .help("Installing this asks for your Mac password.")
+                        Label("Admin", systemImage: "lock.fill")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.fill.tertiary, in: .capsule)
+                            .help("Installing this asks for Touch ID or your Mac password.")
                     }
                 }
                 if let summary = entry.summary {
