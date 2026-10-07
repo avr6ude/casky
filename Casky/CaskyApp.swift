@@ -11,6 +11,11 @@ struct CaskyApp: App {
                 .tint(.purple)
                 .frame(minWidth: 820, minHeight: 520)
         }
+        Settings {
+            SettingsView()
+                .environment(model)
+                .tint(.purple)
+        }
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open Brewfile…") { model.openBrewfile() }

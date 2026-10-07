@@ -15,6 +15,7 @@ import Testing
         #!/bin/sh
         case "$1" in
           update) echo "offline" >&2; exit 1 ;;
+          --version) echo "Homebrew 7.0.8" ;;
           info) echo '{"formulae": [], "casks": [{"full_token": "present"}]}' ;;
           tap-info) echo '[]' ;;
           tap) echo "==> Tapping $2" ;;
@@ -35,7 +36,7 @@ import Testing
     private func model(_ brew: Homebrew) -> AppModel {
         var fetch = CatalogFetch()
         fetch.cacheFile = directory.appending(path: "catalog.json")
-        return AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), locateHomebrew: { brew }, kits: [])
+        return AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!, locateHomebrew: { _ in brew }, kits: [])
     }
 
     @Test func installsInOrderRecordsFailuresAndSkipsInstalled() async throws {
@@ -59,6 +60,27 @@ import Testing
 
         model.dismissRun()
         #expect(model.run == nil)
+    }
+
+    @Test func settingsAcceptOnlyHomebrew() async throws {
+        let brew = try fakeBrew()
+        let defaults = UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!
+        var fetch = CatalogFetch()
+        fetch.cacheFile = directory.appending(path: "catalog.json")
+        let model = AppModel(fetch: fetch, store: SetupStore(file: directory.appending(path: "setups.json")), defaults: defaults, locateHomebrew: { _ in nil }, kits: [])
+
+        await #expect(throws: AppModel.SettingsError.notHomebrew("/bin/echo")) {
+            try await model.setHomebrewPath(URL(fileURLWithPath: "/bin/echo"))
+        }
+        #expect(model.homebrew == nil && model.homebrewPathOverride == nil)
+
+        try await model.setHomebrewPath(brew.executable)
+        #expect(model.homebrew?.executable == brew.executable)
+        #expect(model.homebrewPathOverride == brew.executable.path)
+        #expect(model.installed.casks == ["present"])
+
+        try await model.setHomebrewPath(nil)
+        #expect(model.homebrewPathOverride == nil && model.homebrew == nil)
     }
 
     @Test func stopRequestedMidRunSkipsTheRest() async throws {

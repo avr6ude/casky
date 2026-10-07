@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Progress of an install run: one row per step, live output for the step
@@ -92,11 +93,22 @@ private struct StepRow: View {
             if isCurrent, !model.currentOutput.isEmpty {
                 OutputText(lines: model.currentOutput.suffix(12))
             }
-            if case .failed(_, let output) = outcome, !output.isEmpty {
-                DisclosureGroup("Details") {
-                    OutputText(lines: output[...])
+            if case .failed(_, let output) = outcome {
+                if case .install(.mas(let id, _)) = step.action {
+                    // Paid apps not yet bought, or App Store sign-in, need the App Store itself.
+                    Button("Open in App Store") {
+                        if let url = URL(string: "macappstore://apps.apple.com/app/id\(id)") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .controlSize(.small)
                 }
-                .font(.callout)
+                if !output.isEmpty {
+                    DisclosureGroup("Details") {
+                        OutputText(lines: output[...])
+                    }
+                    .font(.callout)
+                }
             }
         }
         .padding(.vertical, 2)

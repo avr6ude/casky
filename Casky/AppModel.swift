@@ -26,7 +26,8 @@ final class AppModel {
     /// Re-detected on each installed-state refresh, so installing Homebrew
     /// while casky is open is picked up when the window comes back.
     private(set) var homebrew: Homebrew?
-    private let locateHomebrew: () -> Homebrew?
+    private let locateHomebrew: (_ userPath: String?) -> Homebrew?
+    private let defaults: UserDefaults
 
     let kits: [Kit]
 
@@ -67,13 +68,15 @@ final class AppModel {
     init(
         fetch: CatalogFetch = CatalogFetch(),
         store: SetupStore = SetupStore(),
-        locateHomebrew: @escaping () -> Homebrew? = { Homebrew() },
+        defaults: UserDefaults = .standard,
+        locateHomebrew: @escaping (_ userPath: String?) -> Homebrew? = { Homebrew(userPath: $0) },
         kits: [Kit] = AppModel.bundledKits()
     ) {
         self.fetch = fetch
         self.store = store
+        self.defaults = defaults
         self.locateHomebrew = locateHomebrew
-        homebrew = locateHomebrew()
+        homebrew = locateHomebrew(defaults.string(forKey: Self.homebrewPathKey))
         self.kits = kits
         do {
             setups = try store.load()
@@ -121,7 +124,7 @@ final class AppModel {
     }
 
     func refreshInstalled() async {
-        if homebrew == nil { homebrew = locateHomebrew() }
+        if homebrew == nil { homebrew = locateHomebrew(homebrewPathOverride) }
         guard let homebrew else { return }
         do {
             installed = try await homebrew.installedState()
@@ -270,6 +273,33 @@ final class AppModel {
 
     func brewfile(for items: [Item]) -> String { Brewfile.render(items) }
 
+    // MARK: Homebrew location
+
+    static let homebrewPathKey = "homebrewPath"
+
+    /// The `brew` the user picked in Settings, if any.
+    var homebrewPathOverride: String? { defaults.string(forKey: Self.homebrewPathKey) }
+
+    /// Uses the `brew` at `url` after checking it really is Homebrew, or goes
+    /// back to the standard locations when `url` is nil.
+    func setHomebrewPath(_ url: URL?) async throws {
+        if let url {
+            let candidate = Homebrew(executable: url)
+            let version = String(decoding: try await candidate.run(["--version"]), as: UTF8.self)
+            guard version.hasPrefix("Homebrew") else { throw SettingsError.notHomebrew(url.path) }
+            defaults.set(url.path, forKey: Self.homebrewPathKey)
+            homebrew = candidate
+        } else {
+            defaults.removeObject(forKey: Self.homebrewPathKey)
+            homebrew = locateHomebrew(nil)
+        }
+        await refreshInstalled()
+    }
+
+    enum SettingsError: Error, Equatable {
+        case notHomebrew(String)
+    }
+
     // MARK: Helpers
 
     static func bundledKits() -> [Kit] {
@@ -288,6 +318,7 @@ final class AppModel {
         case ToolError.launchFailed(let command, let reason): "\(command): \(reason)"
         case ToolError.missing(let tool): "\(tool) is not installed"
         case FetchError.http(let url, let status): "\(url.host() ?? "Server") returned \(status)"
+        case SettingsError.notHomebrew(let path): "\(path) doesn't look like Homebrew's brew command."
         case FetchError.noInstallerPackage: "The latest Homebrew release has no installer package."
         default: error.localizedDescription
         }
