@@ -10,6 +10,10 @@ struct CatalogEntry: Codable, Hashable, Identifiable, Sendable {
     let installs: Int
     /// Heuristic: the cask ships a pkg or installer, which usually runs `sudo`.
     let needsAdmin: Bool
+    /// The `.app` a cask puts in /Applications, for showing its real icon.
+    var appBundleName: String? = nil
+    /// Artwork published with the item (App Store apps).
+    var iconURL: URL? = nil
 
     var id: Item { item }
 }
@@ -99,7 +103,8 @@ extension Catalog {
                 item: .cask(ref), title: raw.name?.first ?? raw.token, summary: raw.desc,
                 homepage: raw.homepage.flatMap(URL.init(string:)),
                 installs: caskCounts[raw.token] ?? 0,
-                needsAdmin: raw.artifacts.contains { !$0.keys.isDisjoint(with: ["pkg", "installer"]) }
+                needsAdmin: raw.artifacts.contains { !$0.keys.isDisjoint(with: ["pkg", "installer"]) },
+                appBundleName: raw.artifacts.lazy.compactMap(\.appName).first
             )
         }
         return formulaEntries + caskEntries
@@ -120,17 +125,38 @@ extension Catalog {
         let homepage: String?
         let deprecated: Bool
         let disabled: Bool
-        let artifacts: [ArtifactKeys]
+        let artifacts: [Artifact]
     }
 
-    /// Only the artifact kinds matter (`app`, `pkg`, `installer`, ...); their
-    /// payloads vary per kind and are not needed.
-    private struct ArtifactKeys: Decodable {
+    /// The artifact kinds (`app`, `pkg`, `installer`, ...) and, for `app`,
+    /// the installed bundle name. Other payloads vary per kind and are skipped.
+    private struct Artifact: Decodable {
         let keys: Set<String>
+        let appName: String?
 
         init(from decoder: Decoder) throws {
             let container = try? decoder.container(keyedBy: AnyKey.self)
             keys = Set(container?.allKeys.map(\.stringValue) ?? [])
+            // `"app": ["Source.app"]` or `["Source.app", {"target": "Installed.app"}]`.
+            let parts = try? container?.decode([AppPart].self, forKey: AnyKey(stringValue: "app"))
+            appName = parts.flatMap { parts in
+                parts.lazy.compactMap(\.target).first ?? parts.lazy.compactMap(\.source).first
+            }
+        }
+    }
+
+    private struct AppPart: Decodable {
+        let source: String?
+        let target: String?
+
+        init(from decoder: Decoder) throws {
+            if let name = try? decoder.singleValueContainer().decode(String.self) {
+                source = name
+                target = nil
+            } else {
+                source = nil
+                target = try decoder.container(keyedBy: AnyKey.self).decodeIfPresent(String.self, forKey: AnyKey(stringValue: "target"))
+            }
         }
     }
 
@@ -183,7 +209,9 @@ enum AppStoreSearch {
                 item: .mas(id: app.trackId, name: app.trackName), title: app.trackName,
                 summary: app.description.flatMap { $0.split(separator: "\n").first.map(String.init) },
                 homepage: app.trackViewUrl.flatMap(URL.init(string:)),
-                installs: 0, needsAdmin: false
+                installs: 0, needsAdmin: false,
+                appBundleName: "\(app.trackName).app",
+                iconURL: (app.artworkUrl512 ?? app.artworkUrl100).flatMap(URL.init(string:))
             )
         }
     }
@@ -196,5 +224,7 @@ enum AppStoreSearch {
         let kind: String?
         let description: String?
         let trackViewUrl: String?
+        let artworkUrl512: String?
+        let artworkUrl100: String?
     }
 }

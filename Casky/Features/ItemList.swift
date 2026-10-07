@@ -48,10 +48,7 @@ struct ItemRow: View {
                 .toggleStyle(.checkbox)
                 .labelsHidden()
 
-            Image(systemName: entry.item.kind.symbol)
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
+            ItemIcon(entry: entry)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -91,5 +88,32 @@ struct ItemRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityAction(named: isSelected ? "Remove from selection" : "Add to selection", toggle)
+    }
+}
+
+/// The app's real icon when one can be found, the kind's symbol otherwise.
+struct ItemIcon: View {
+    let entry: CatalogEntry
+    var size: CGFloat = 32
+    @State private var icon: IconStore.Icon?
+
+    var body: some View {
+        Group {
+            if let icon {
+                let image = Image(nsImage: icon.image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                if icon.source == .installedApp {
+                    image
+                } else {
+                    // Web and store artwork is usually a plain square; give it the app-icon shape.
+                    image.clipShape(.rect(cornerRadius: size * 0.225, style: .continuous))
+                }
+            } else {
+                Image(systemName: entry.item.kind.symbol)
+                    .font(.system(size: size * 0.55))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .task(id: entry.item) { icon = await IconStore.shared.icon(for: entry) }
     }
 }
