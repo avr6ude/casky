@@ -202,13 +202,14 @@ struct SelectionView: View {
 }
 
 struct BrowseView: View {
-    let kind: Item.Kind
+    let kind: Item.Kind?
     @State private var query = ""
 
     var body: some View {
+        let title = kind?.pluralLabel ?? "All Apps"
         SearchResults(query: query, kind: kind)
-            .navigationTitle(kind.pluralLabel)
-            .searchable(text: $query, placement: .toolbar, prompt: "Search \(kind.pluralLabel)")
+            .navigationTitle(title)
+            .searchable(text: $query, placement: .toolbar, prompt: kind == nil ? "Search apps, tools and the App Store" : "Search \(title)")
     }
 }
 

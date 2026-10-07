@@ -6,7 +6,8 @@ enum Destination: Hashable {
     case selection
     case history
     case updates
-    case browse(Item.Kind)
+    /// nil: everything (Homebrew apps and tools, then the App Store).
+    case browse(Item.Kind?)
     case kit(String)
     case setup(UUID)
     case tap(String)
@@ -98,6 +99,7 @@ private struct Sidebar: View {
             Label("History", systemImage: "clock.arrow.circlepath").tag(Destination.history)
 
             Section("Browse") {
+                Label("All Apps", systemImage: "square.grid.2x2").tag(Destination.browse(nil))
                 ForEach([Item.Kind.cask, .formula, .mas], id: \.self) { kind in
                     Label(kind.pluralLabel, systemImage: kind.symbol).tag(Destination.browse(kind))
                 }
