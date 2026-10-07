@@ -1,18 +1,20 @@
 import SwiftUI
 
-/// Quick Look for an app or tool: big icon, what it is, screenshots, the
-/// facts Homebrew or the App Store publish, and Install right there.
+/// Quick Look for an app or tool: what it is, screenshots, everything
+/// Homebrew, the App Store and the vendor publish about it, what it puts on
+/// the Mac, and — when installed — what the copy on this Mac says about itself.
 struct AppPreview: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let entry: CatalogEntry
     @State private var details: AppDetails?
     @State private var error: String?
+    @State private var local: [AppDetails.Fact]?
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 28) {
                     header
                     if let details {
                         content(details)
@@ -20,89 +22,87 @@ struct AppPreview: View {
                         Label(error, systemImage: "wifi.exclamationmark")
                             .foregroundStyle(.secondary)
                     } else {
-                        ProgressView().frame(maxWidth: .infinity)
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 120)
                     }
                 }
-                .padding(28)
+                .padding(32)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             Divider()
             footer
         }
-        .frame(width: 760, height: 640)
+        .frame(width: 880, height: 760)
         .task(id: entry.item) { await load() }
+        .task(id: entry.item) { await loadLocal() }
     }
+
+    // MARK: Header
 
     private var header: some View {
         HStack(alignment: .top, spacing: 20) {
             ItemIcon(entry: entry, size: 96)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(entry.title).font(.largeTitle.bold())
-                Text("\(entry.item.kind.label) · \(entry.item.technicalName)")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(entry.title)
+                    .font(.largeTitle.bold())
                     .textSelection(.enabled)
                 if let summary = entry.summary {
-                    Text(summary).font(.title3)
+                    Text(summary)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
                 }
                 HStack(spacing: 8) {
-                    if model.isInstalled(entry.item) {
-                        Label("Installed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    }
-                    if entry.needsAdmin {
-                        Label("Admin", systemImage: "lock.fill").foregroundStyle(.secondary)
-                    }
+                    if model.isInstalled(entry.item) { Pill.installed }
+                    if entry.needsAdmin { Pill.approval(touchID: model.touchIDForAdmin) }
+                    Text("\(entry.item.kind.label) · \(entry.item.technicalName)")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                        .textSelection(.enabled)
                 }
-                .font(.callout)
             }
         }
     }
 
+    // MARK: Content
+
     @ViewBuilder private func content(_ details: AppDetails) -> some View {
         if !details.screenshots.isEmpty {
-            ScrollView(.horizontal) {
-                HStack(spacing: 12) {
-                    ForEach(details.screenshots, id: \.self) { url in
-                        AsyncImage(url: url) { image in
-                            image.resizable().aspectRatio(contentMode: .fit)
-                        } placeholder: {
-                            Rectangle().fill(.fill.tertiary).aspectRatio(1.6, contentMode: .fit)
-                        }
-                        .frame(height: 260)
-                        .clipShape(.rect(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
-                    }
-                }
-            }
-            .scrollIndicators(.visible)
+            Screenshots(urls: details.screenshots)
         }
-
-        if !details.facts.isEmpty {
-            Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
-                ForEach(details.facts, id: \.self) { fact in
-                    GridRow {
-                        Text(fact.label).foregroundStyle(.secondary)
-                        Text(fact.value).textSelection(.enabled)
-                    }
-                }
-            }
-        }
-
         if let about = details.about {
-            Text(about)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
+            ExpandableText(title: "About", text: about)
+        }
+        if let whatsNew = details.whatsNew {
+            ExpandableText(title: "What's New", text: whatsNew)
+        }
+
+        let sections = details.sections + (local.map { [AppDetails.Section(title: "On This Mac", facts: $0)] } ?? [])
+        if !sections.isEmpty {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 16, alignment: .top), GridItem(.flexible(), spacing: 16, alignment: .top)],
+                      alignment: .leading, spacing: 16) {
+                ForEach(sections, id: \.self) { section in
+                    FactCard(section: section)
+                }
+            }
+        } else if model.isInstalled(entry.item), local == nil, entry.appBundleName != nil {
+            ProgressView("Reading the app on this Mac…").controlSize(.small)
+        }
+
+        ForEach(details.listings, id: \.self) { listing in
+            ListingView(listing: listing)
         }
 
         if let caveats = details.caveats {
             VStack(alignment: .leading, spacing: 8) {
-                Text("After installing").font(.headline)
+                Text("After Installing").font(.headline)
                 ConsoleView(lines: caveats.components(separatedBy: "\n"), height: 120)
             }
         }
     }
 
+    // MARK: Footer
+
     private var footer: some View {
-        HStack {
+        HStack(spacing: 12) {
             if let homepage = entry.homepage {
                 Link(destination: homepage) {
                     Label(entry.item.kind == .mas ? "View in App Store" : "Website", systemImage: "safari")
@@ -128,6 +128,8 @@ struct AppPreview: View {
         .padding(16)
     }
 
+    // MARK: Loading
+
     private func load() async {
         do {
             details = try await DetailsFetch().details(for: entry)
@@ -135,6 +137,112 @@ struct AppPreview: View {
         } catch is CancellationError {
         } catch {
             self.error = "Couldn't load details: \(AppModel.describe(error))"
+        }
+    }
+
+    /// Size on disk, signature and Gatekeeper checks take a moment, so they
+    /// load separately from the online details.
+    private func loadLocal() async {
+        guard let bundle = entry.appBundleName, let app = LocalApp.location(of: bundle) else { return }
+        local = await LocalApp.facts(for: app)
+    }
+}
+
+// MARK: - Pieces
+
+private struct Screenshots: View {
+    let urls: [URL]
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 12) {
+                ForEach(urls, id: \.self) { url in
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Rectangle().fill(.fill.tertiary).aspectRatio(1.6, contentMode: .fit)
+                    }
+                    .frame(height: 300)
+                    .clipShape(.rect(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+                }
+            }
+        }
+        .scrollIndicators(.visible)
+    }
+}
+
+/// A heading and text that shows six lines until expanded.
+private struct ExpandableText: View {
+    let title: String
+    let text: String
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            Text(text)
+                .lineLimit(isExpanded ? nil : 6)
+                .textSelection(.enabled)
+            if text.count > 400 || text.filter(\.isNewline).count > 5 {
+                Button(isExpanded ? "Less" : "More") { isExpanded.toggle() }
+                    .buttonStyle(.link)
+            }
+        }
+    }
+}
+
+private struct FactCard: View {
+    let section: AppDetails.Section
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(section.title).font(.headline)
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 8) {
+                ForEach(section.facts, id: \.self) { fact in
+                    GridRow {
+                        Text(fact.label)
+                            .foregroundStyle(.secondary)
+                            .gridColumnAlignment(.leading)
+                        Text(fact.value)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .font(.callout)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.fill.quinary, in: .rect(cornerRadius: 12))
+    }
+}
+
+private struct ListingView: View {
+    let listing: AppDetails.Listing
+    @State private var isExpanded = false
+
+    var body: some View {
+        let preview = 6
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(listing.title).font(.headline)
+                Text("\(listing.items.count)").foregroundStyle(.tertiary)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(listing.items.prefix(isExpanded ? listing.items.count : preview), id: \.self) { item in
+                    Text(item)
+                        .font(listing.isCode ? .callout.monospaced() : .callout)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            if listing.items.count > preview {
+                Button(isExpanded ? "Show Less" : "Show All \(listing.items.count)") { isExpanded.toggle() }
+                    .buttonStyle(.link)
+            }
         }
     }
 }

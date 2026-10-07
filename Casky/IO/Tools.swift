@@ -119,6 +119,21 @@ enum ToolRunner {
         }
     }
 
+    /// Runs a command and returns its merged stdout+stderr lines, whatever
+    /// the exit status. For tools such as `codesign -dv` that report on stderr.
+    static func lines(_ executable: URL, arguments: [String]) async throws -> [String] {
+        let collector = LineCollector()
+        _ = try await stream(executable, arguments: arguments, environment: [:], onLine: collector.append)
+        return collector.lines
+    }
+
+    private final class LineCollector: @unchecked Sendable {
+        private let lock = NSLock()
+        private var collected: [String] = []
+        var lines: [String] { lock.withLock { collected } }
+        func append(_ line: String) { lock.withLock { collected.append(line) } }
+    }
+
     private static func streamBlocking(
         _ executable: URL,
         arguments: [String],

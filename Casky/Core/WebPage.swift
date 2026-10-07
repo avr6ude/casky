@@ -1,8 +1,21 @@
 import Foundation
 
-/// Icons a web page declares with `<link rel="icon" | "apple-touch-icon" ...>`,
-/// best first.
-enum WebIcons {
+/// What a product's homepage says about it: declared icons, share image and
+/// description. HTML goes through Foundation's XMLDocument (tidy HTML).
+enum WebPage {
+    /// The page's own summary (`og:description`, else `description`).
+    static func description(in html: Data) -> String? {
+        guard let document = try? XMLDocument(data: html, options: [.documentTidyHTML]) else { return nil }
+        for key in ["og:description", "description", "twitter:description"] {
+            let path = "//meta[@property='\(key)' or @name='\(key)']/@content"
+            if let content = (try? document.nodes(forXPath: path))?.first?.stringValue?
+                .trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty {
+                return content
+            }
+        }
+        return nil
+    }
+
     /// The page's share image (`og:image`, else `twitter:image`), often a
     /// product screenshot.
     static func previewImage(in html: Data, baseURL: URL) -> URL? {
@@ -17,7 +30,8 @@ enum WebIcons {
         return nil
     }
 
-    /// Ranked by declared size (an apple-touch-icon without `sizes` counts as
+    /// Icons the page declares with `<link rel="icon" | "apple-touch-icon">`,
+    /// best first. Ranked by declared size (an apple-touch-icon without `sizes` counts as
     /// 180px, other undeclared sizes as 32px). Icons tied to a color scheme
     /// via `media` go last, since they may not suit the app's appearance.
     static func declared(in html: Data, baseURL: URL) -> [URL] {

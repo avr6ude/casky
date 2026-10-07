@@ -355,7 +355,7 @@ import Testing
     }
 }
 
-@Suite struct WebIconsTests {
+@Suite struct WebPageTests {
     @Test func ranksDeclaredIconsBySizeAndPutsThemedOnesLast() {
         let html = Data("""
         <!doctype html><html><head>
@@ -367,7 +367,7 @@ import Testing
         <link rel="icon" href="http://insecure.example.com/x.png" sizes="512x512">
         </head><body><p>Hi</body></html>
         """.utf8)
-        let icons = WebIcons.declared(in: html, baseURL: URL(string: "https://example.com/product/")!)
+        let icons = WebPage.declared(in: html, baseURL: URL(string: "https://example.com/product/")!)
         #expect(icons.map(\.absoluteString) == [
             "https://cdn.example.com/icon-196.png",
             "https://example.com/touch.png",
@@ -377,51 +377,99 @@ import Testing
     }
 
     @Test func toleratesPagesWithoutIcons() {
-        #expect(WebIcons.declared(in: Data("not html at all".utf8), baseURL: URL(string: "https://example.com")!).isEmpty)
+        #expect(WebPage.declared(in: Data("not html at all".utf8), baseURL: URL(string: "https://example.com")!).isEmpty)
     }
 }
 
 @Suite struct AppDetailsTests {
-    @Test func caskFacts() throws {
-        let json = Data(#"""
-        {"version": "1.140.0", "auto_updates": true, "depends_on": {"macos": {">=": ["12"]}}, "caveats": null,
-         "url": "https://update.code.visualstudio.com/1.140.0/darwin-arm64/stable",
-         "analytics": {"install": {"30d": {"visual-studio-code": 19444}, "365d": {"visual-studio-code": 478813}}}}
-        """#.utf8)
-        let details = try AppDetails.fromCask(json)
-        #expect(details.facts.map(\.label) == ["Version", "Updates", "Requires", "Installs, last 30 days", "Installs, last year", "Downloads from"])
-        #expect(details.facts.first { $0.label == "Requires" }?.value == "macOS 12 or later")
-        #expect(details.facts.first { $0.label == "Downloads from" }?.value == "update.code.visualstudio.com")
-        #expect(details.caveats == nil)
+    private func facts(_ details: AppDetails, _ section: String) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: (details.sections.first { $0.title == section }?.facts ?? []).map { ($0.label, $0.value) })
     }
 
-    @Test func formulaFactsSumVariants() throws {
+    @Test func caskSectionsAndWhatItInstalls() throws {
         let json = Data(#"""
-        {"versions": {"stable": "15.2.0"}, "license": "Unlicense", "dependencies": ["pcre2"], "caveats": "  Shell completions installed.  ",
-         "analytics": {"install_on_request": {"30d": {"ripgrep": 22543, "ripgrep --HEAD": 22}, "365d": {"ripgrep": 1}}}}
+        {"version": "7.2.2", "auto_updates": true, "depends_on": {"macos": {">=": ["12"]}}, "caveats": null,
+         "conflicts_with": {"cask": ["zoom-for-it-admins"]}, "languages": [], "old_tokens": [],
+         "url": "https://cdn.zoom.us/prod/7.2.2/arm64/zoomusInstallerFull.pkg",
+         "analytics": {"install": {"30d": {"zoom": 19444}, "90d": {"zoom": 50000}, "365d": {"zoom": 478813}}},
+         "artifacts": [
+           {"uninstall": [{"launchctl": ["us.zoom.updater", "us.zoom.ZoomDaemon"], "delete": ["/Applications/zoom.us.app"]}]},
+           {"pkg": ["zoomusInstallerFull.pkg"]},
+           {"app": ["Thorium.app", {"target": "Thorium Browser.app"}]},
+           {"binary": ["$APPBUNDLE/Contents/Resources/app/bin/code", {"target": "/usr/local/bin/code"}]},
+           {"zap": [{"trash": ["~/.zoomus", "~/Library/Caches/us.zoom.xos"], "rmdir": "~/Documents/Zoom"}]}
+         ]}
+        """#.utf8)
+        let details = try AppDetails.fromCask(json)
+        let overview = facts(details, "Overview")
+        #expect(overview["Installer"] == "System installer, needs approval")
+        #expect(overview["Conflicts with"] == "zoom-for-it-admins")
+        #expect(facts(details, "Requirements")["macOS"] == "12 or later")
+        #expect(facts(details, "Popularity")["Last 90 days"] == "\(50000.formatted()) installs")
+        #expect(details.listings.map(\.title) == ["Installs", "Background services", "Uninstalling removes"])
+        #expect(details.listings[0].items == ["Installer package: zoomusInstallerFull.pkg", "App: Thorium Browser.app", "Command: code"])
+        #expect(details.listings[1].items == ["us.zoom.updater", "us.zoom.ZoomDaemon"])
+        #expect(details.listings[2].items == ["~/.zoomus", "~/Library/Caches/us.zoom.xos", "~/Documents/Zoom"])
+        #expect(details.downloadURL?.host() == "cdn.zoom.us")
+    }
+
+    @Test func formulaSectionsAndCommands() throws {
+        let json = Data(#"""
+        {"versions": {"stable": "8.0"}, "license": "GPL-2.0-or-later", "dependencies": ["dav1d", "lame"], "caveats": "  Shell completions installed.  ",
+         "bottle": {"stable": {"files": {"arm64_tahoe": {}, "x86_64_linux": {}}}}, "service": null, "keg_only": false, "aliases": ["ffmpeg@8"],
+         "executables": ["ffmpeg", "ffprobe"], "uses_from_macos": ["bzip2", {"libxml2": "build"}],
+         "analytics": {"install_on_request": {"30d": {"ffmpeg": 22543, "ffmpeg --HEAD": 22}}}}
         """#.utf8)
         let details = try AppDetails.fromFormula(json)
-        #expect(details.facts.first { $0.label == "Depends on" }?.value == "pcre2")
-        #expect(details.facts.first { $0.label == "Installs, last 30 days" }?.value == 22565.formatted())
+        let overview = facts(details, "Overview")
+        #expect(overview["Install"] == "Prebuilt for Apple Silicon")
+        #expect(overview["In your PATH"] == "Yes")
+        #expect(overview["Background service"] == nil)
+        #expect(facts(details, "Popularity")["Last 30 days"] == "\(22565.formatted()) installs")
+        #expect(details.listings.first { $0.title == "Commands" }?.items == ["ffmpeg", "ffprobe"])
+        #expect(details.listings.first { $0.title == "Uses from macOS" }?.items == ["bzip2"])
         #expect(details.caveats == "Shell completions installed.")
     }
 
     @Test func appStoreDetails() throws {
         let json = Data(#"""
         {"resultCount": 1, "results": [{"formattedPrice": "Free", "averageUserRating": 4.75, "userRatingCount": 1200, "version": "5.3",
-          "fileSizeBytes": "6671277", "minimumOsVersion": "10.13", "primaryGenreName": "Utilities", "sellerName": "William Gustafson",
-          "description": "Keeps your Mac awake.", "screenshotUrls": ["https://example.com/1.jpg", "https://example.com/2.jpg"]}]}
+          "fileSizeBytes": "6671277", "minimumOsVersion": "10.13", "genres": ["Utilities", "Productivity"], "sellerName": "William Gustafson",
+          "trackContentRating": "4+", "currentVersionReleaseDate": "2023-11-10T00:52:30Z", "languageCodesISO2A": ["EN", "FR"],
+          "releaseNotes": "Fixes.", "description": "Keeps your Mac awake.", "screenshotUrls": ["https://example.com/1.jpg", "https://example.com/2.jpg"]}]}
         """#.utf8)
         let details = try AppDetails.fromAppStore(json)
         #expect(details.screenshots.count == 2)
         #expect(details.about == "Keeps your Mac awake.")
-        #expect(details.facts.first { $0.label == "Rating" }?.value.hasPrefix("4.8 ★") == true)
+        #expect(details.whatsNew == "Fixes.")
+        #expect(facts(details, "Overview")["Rating"]?.hasPrefix("4.8 ★") == true)
+        #expect(facts(details, "Overview")["Category"] == "Utilities, Productivity")
+        #expect(facts(details, "Requirements")["Languages"]?.contains(",") == true)
         #expect(throws: DetailsError.self) { try AppDetails.fromAppStore(Data(#"{"results": []}"#.utf8)) }
     }
 
-    @Test func pagePreviewImage() {
-        let html = Data(#"<html><head><meta property="og:image" content="/og.png"><meta name="twitter:image" content="https://x.example/t.png"></head></html>"#.utf8)
-        #expect(WebIcons.previewImage(in: html, baseURL: URL(string: "https://example.com/app/")!)?.absoluteString == "https://example.com/og.png")
+    @Test func pagePreviewImageAndDescription() {
+        let html = Data(#"<html><head><meta property="og:image" content="/og.png"><meta name="description" content="  The editor.  "></head></html>"#.utf8)
+        #expect(WebPage.previewImage(in: html, baseURL: URL(string: "https://example.com/app/")!)?.absoluteString == "https://example.com/og.png")
+        #expect(WebPage.description(in: html) == "The editor.")
+    }
+}
+
+@Suite struct LocalAppTests {
+    @Test func parsesSignatureAndGatekeeperOutput() {
+        #expect(LocalApp.signer(fromCodesign: ["Executable=/x", "Authority=Developer ID Application: Example Inc (ABCDE12345)", "Authority=Developer ID Certification Authority"])
+                == "Developer ID Application: Example Inc (ABCDE12345)")
+        #expect(LocalApp.signer(fromCodesign: ["Signature=adhoc"]) == "Not signed by a developer (ad hoc)")
+        #expect(LocalApp.gatekeeperVerdict(fromSpctl: ["/Applications/X.app: accepted", "source=Notarized Developer ID"]) == "Allowed: Notarized Developer ID")
+        #expect(LocalApp.gatekeeperVerdict(fromSpctl: ["/Applications/X.app: rejected"]) == "Blocked")
+        #expect(LocalApp.architectures([NSBundleExecutableArchitectureARM64, NSBundleExecutableArchitectureX86_64]) == "Apple Silicon and Intel (Universal)")
+    }
+
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: "/System/Applications/Calculator.app")))
+    func readsARealApp() async {
+        let facts = Dictionary(uniqueKeysWithValues: await LocalApp.facts(for: URL(fileURLWithPath: "/System/Applications/Calculator.app")).map { ($0.label, $0.value) })
+        #expect(facts["Bundle ID"] == "com.apple.calculator")
+        #expect(facts["Runs on"] != nil && facts["Size on disk"] != nil && facts["Signed by"] != nil)
     }
 }
 

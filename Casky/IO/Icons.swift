@@ -98,7 +98,7 @@ actor IconStore {
            let avatar = URL(string: "https://github.com/\(owner).png?size=128") {
             return [(avatar, .website)]
         }
-        let declared = await download(homepage, limit: 2_000_000).map { WebIcons.declared(in: $0, baseURL: homepage) } ?? []
+        let declared = await download(homepage, limit: 2_000_000).map { WebPage.declared(in: $0, baseURL: homepage) } ?? []
         let conventional = ["apple-touch-icon.png", "favicon.ico"].compactMap { URL(string: "https://\(host)/\($0)") }
         return (declared + conventional).uniqued().map { ($0, .website) }
     }
