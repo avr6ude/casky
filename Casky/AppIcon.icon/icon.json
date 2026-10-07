@@ -1,0 +1,44 @@
+{
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.43000,0.36000,0.95000,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "tile.svg",
+          "name": "tile"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.12
+      }
+    },
+    {
+      "layers": [
+        {
+          "image-name": "back-tiles.svg",
+          "name": "back-tiles"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

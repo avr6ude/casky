@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Two tiles fanned out behind the front one; they meet behind it, so only their outer edges show. -->
+  <rect x="207" y="365" width="370" height="370" rx="92" fill="#ffffff" transform="rotate(-12 392 550)"/>
+  <rect x="447" y="365" width="370" height="370" rx="92" fill="#ffffff" transform="rotate(12 632 550)"/>
+</svg>
