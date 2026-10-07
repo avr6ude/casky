@@ -160,6 +160,13 @@ struct CollectionView<Actions: View>: View {
                     model.toggleAll(items)
                 }
                 .disabled(items.isEmpty)
+                let missing = items.filter { !model.isInstalled($0) }
+                Button(missing.isEmpty && !items.isEmpty ? "All Installed" : "Install Now") {
+                    Task { await model.install(missing) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(missing.isEmpty || model.isInstalling || model.homebrew == nil)
+                .help(missing.isEmpty ? "Everything here is already installed" : "Install the \(missing.count) not installed yet")
             }
             .controlSize(.large)
             .padding(24)
