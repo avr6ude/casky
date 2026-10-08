@@ -114,3 +114,11 @@ private final class LineCollector: @unchecked Sendable {
         #expect(on.components(separatedBy: "pam_tid.so").count == 2)
     }
 }
+
+@Suite struct CommandLineToolsTests {
+    @Test func spotsHomebrewAskingForTheTools() {
+        let output = ["==> Installing tart from openai/tools", "Error: No developer tools installed.", "Install the Command Line Tools:", "  xcode-select --install"]
+        #expect(CommandLineTools.isMissing(in: output))
+        #expect(!CommandLineTools.isMissing(in: ["Error: Cask 'ghostty@tip' conflicts with 'ghostty'."]))
+    }
+}

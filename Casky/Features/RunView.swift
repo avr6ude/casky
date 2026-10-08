@@ -135,6 +135,16 @@ private struct StepRow: View {
             if case .installed = outcome, !log.isEmpty {
                 StepDetails(lines: log)
             }
+            if case .failed(_, let output) = outcome, CommandLineTools.isMissing(in: output) {
+                HStack(spacing: 8) {
+                    Text("Homebrew needs Apple's Command Line Tools for this. Install them, then Retry Unfinished.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Button("Install Command Line Tools") { Task { await CommandLineTools.install() } }
+                        .controlSize(.small)
+                        .disabled(CommandLineTools.isInstalled)
+                }
+            }
             if case .failed(_, let output) = outcome {
                 if case .mas(let id, _) = step.action.item {
                     // Paid apps not yet bought, or App Store sign-in, need the App Store itself.

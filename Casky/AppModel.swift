@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Network
 import Observation
 
@@ -71,6 +71,7 @@ final class AppModel {
     /// for that reason, and Retry is the fix once it's back.
     var lostConnectionDuringRun = false
     private var pathMonitor: NWPathMonitor?
+    private var launchObserver: (any NSObjectProtocol)?
 
     /// The current or last install run; nil when none is shown.
     var run: RunState?
@@ -176,6 +177,7 @@ final class AppModel {
     /// when it is missing or stale.
     func start() async {
         watchConnection()
+        watchForCommandLineToolsPrompt()
         async let installed: Void = refreshInstalled()
         let fetch = fetch
         let cached = await Task.detached { fetch.cached() }.value
@@ -187,6 +189,19 @@ final class AppModel {
         }
         await installed
         await refreshUpdates()
+    }
+
+    /// Homebrew and `xcrun` open Apple's Command Line Tools prompt
+    /// themselves when the tools are missing; it would sit behind casky.
+    private func watchForCommandLineToolsPrompt() {
+        guard launchObserver == nil else { return }
+        launchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main
+        ) { notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard app?.bundleIdentifier == CommandLineTools.installerBundleID else { return }
+            Task { @MainActor in CommandLineTools.bringInstallerForward() }
+        }
     }
 
     private func watchConnection() {

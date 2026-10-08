@@ -95,6 +95,7 @@ struct OnboardingView: View {
 private struct SetupToolsPage: View {
     @Environment(AppModel.self) private var model
     @State private var installingHomebrew = false
+    @State private var hasCommandLineTools = CommandLineTools.isInstalled
 
     var body: some View {
         VStack(spacing: 28) {
@@ -124,6 +125,17 @@ private struct SetupToolsPage: View {
                 }
                 Divider().padding(.leading, 56)
                 ToolRow(
+                    name: "Command Line Tools",
+                    detail: "Apple's developer tools. Homebrew needs them to build some tools.",
+                    symbol: "hammer",
+                    isReady: hasCommandLineTools,
+                    isWorking: false,
+                    actionTitle: "Install"
+                ) {
+                    Task { await CommandLineTools.install() }
+                }
+                Divider().padding(.leading, 56)
+                ToolRow(
                     name: "mas",
                     detail: model.homebrew == nil ? "Installs App Store apps. Needs Homebrew first." : "Installs App Store apps.",
                     symbol: "bag",
@@ -145,6 +157,11 @@ private struct SetupToolsPage: View {
             }
         }
         .padding(40)
+        // Apple's installer runs in its own window; pick up the result
+        // when the user comes back.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasCommandLineTools = CommandLineTools.isInstalled
+        }
     }
 }
 
