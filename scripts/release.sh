@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds casky, signs it with Developer ID, notarizes, and packages a DMG.
+# Builds Casky, signs it with Developer ID, notarizes, and packages a DMG.
 #
 #   TEAM_ID=XXXXXXXXXX scripts/release.sh     signed + notarized release
 #   scripts/release.sh --unsigned             local dry run (ad-hoc, no notarization)
@@ -52,7 +52,7 @@ staging="$out/dmg"
 mkdir -p "$staging"
 cp -R "$app" "$staging/"
 ln -s /Applications "$staging/Applications"
-hdiutil create -volname casky -srcfolder "$staging" -ov -format UDZO "$dmg" -quiet
+hdiutil create -volname Casky -srcfolder "$staging" -ov -format UDZO "$dmg" -quiet
 
 if ! $unsigned; then
   codesign --sign "Developer ID Application" --timestamp "$dmg"
