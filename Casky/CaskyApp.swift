@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct CaskyApp: App {
     @State private var model = AppModel()
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
 
     var body: some Scene {
         Window("casky", id: "main") {
@@ -16,6 +17,9 @@ struct CaskyApp: App {
                 .environment(model)
         }
         .commands {
+            CommandGroup(after: .appSettings) {
+                Button("Setup Assistant…") { onboardingComplete = false }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Open Brewfile…") { model.openBrewfile() }
                     .keyboardShortcut("o")

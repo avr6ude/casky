@@ -20,7 +20,10 @@ struct RunView: View {
                     StepRow(step: step, outcome: run.outcomes[step.action], log: run.logs[step.action] ?? [], isCurrent: run.current == step)
                 }
                 if !run.plan.alreadyInstalled.isEmpty {
-                    Text("\(run.plan.alreadyInstalled.count) already installed, skipped")
+                    let names = model.names(run.plan.alreadyInstalled)
+                    Text("Already installed, skipped: \(names)")
+                        .lineLimit(2)
+                        .help(names)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -37,6 +40,11 @@ struct RunView: View {
     }
 
     private var finishedCount: Int { run.outcomes.count }
+
+    /// The app or tool the run stops after: "Ghostty", "golang.go".
+    private func stopName(_ action: InstallStep.Action) -> String {
+        action.item.map { model.displayEntry(for: $0).title } ?? action.name
+    }
 
     @ViewBuilder private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -66,7 +74,7 @@ struct RunView: View {
         HStack {
             Spacer()
             if model.isInstalling {
-                Button("Stop After This Item") { model.stopAfterCurrentStep() }
+                Button(run.current.map { "Stop After \(stopName($0.action))" } ?? "Stop After This Item") { model.stopAfterCurrentStep() }
                     .disabled(run.stopRequested || model.isPreparing)
             } else {
                 if run.failedCount > 0 || run.stopRequested {
@@ -99,6 +107,9 @@ private struct StepRow: View {
             }
             .accessibilityElement(children: .combine)
 
+            if isCurrent, let started = model.currentStepStarted {
+                SlowStepNote(started: started)
+            }
             if isCurrent, !model.currentOutput.isEmpty {
                 ConsoleView(lines: model.currentOutput, height: 200)
             }
@@ -160,6 +171,23 @@ private struct StepRow: View {
                 ProgressView().controlSize(.small)
             } else {
                 Image(systemName: "circle").foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+/// After two minutes on one step: say it's still going, and that big apps
+/// (Microsoft Office, Xcode) really do take this long.
+private struct SlowStepNote: View {
+    let started: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 15)) { context in
+            let minutes = Int(context.date.timeIntervalSince(started) / 60)
+            if minutes >= 2 {
+                Label("Still going after \(minutes) minutes. Large apps such as Microsoft Office can take 10 minutes or more to download and install.", systemImage: "hourglass")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
         }
     }

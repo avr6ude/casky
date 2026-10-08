@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var updateError: String?
     @State private var touchID = TouchIDForSudo.isEnabled
     @State private var touchIDError: String?
+    @AppStorage("onboardingComplete") private var onboardingComplete = false
 
     var body: some View {
         Form {
@@ -47,6 +48,17 @@ struct SettingsView: View {
                      ? "Installs that need admin rights ask for your fingerprint instead of your password. This turns on Touch ID for sudo on this Mac (in /etc/pam.d/sudo_local), so it applies in Terminal too."
                      : "This Mac has no Touch ID, so admin prompts ask for your password.")
                     .foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Setup assistant") {
+                    Button("Show Again") {
+                        onboardingComplete = false
+                        NSApp.windows.first { $0.identifier?.rawValue == "main" }?.makeKeyAndOrderFront(nil)
+                    }
+                }
+            } footer: {
+                Text("Picks apps for you step by step, as on first launch.")
             }
 
             Section {

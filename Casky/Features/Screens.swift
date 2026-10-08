@@ -109,6 +109,7 @@ private struct ApplySetupSheet: View {
                     if !plan.alreadyInstalled.isEmpty || packageSteps.isEmpty {
                         Text(setup.items.isEmpty ? "None in this setup" : "^[\(plan.alreadyInstalled.count) already installed](inflect: true), skipped")
                             .foregroundStyle(.secondary)
+                            .help(model.names(plan.alreadyInstalled))
                     }
                 }
                 let developerSteps = plan.steps.filter {
@@ -447,6 +448,7 @@ struct SelectionBar: View {
                         Text("\(model.installedSelectionCount) already installed")
                             .font(.callout)
                             .foregroundStyle(.secondary)
+                            .help(model.names(model.selection.filter(model.isInstalled)))
                     }
                 }
             }
@@ -515,7 +517,7 @@ private struct InstallConfirmation: ViewModifier {
 
     private func summary(plan: InstallPlan, needsPassword: Int, hasAppStore: Bool) -> String {
         var lines = ["Homebrew and the App Store will install these on this Mac."]
-        if !plan.alreadyInstalled.isEmpty { lines.append("\(plan.alreadyInstalled.count) already installed will be skipped.") }
+        if !plan.alreadyInstalled.isEmpty { lines.append("Already installed, skipped: \(model.names(plan.alreadyInstalled)).") }
         if needsPassword > 0 { lines.append("\(needsPassword) need admin rights (Touch ID or your Mac password).") }
         if hasAppStore { lines.append("App Store apps need you to be signed in to the App Store.") }
         return lines.joined(separator: "\n")

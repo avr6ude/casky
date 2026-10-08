@@ -25,6 +25,7 @@ struct HistoryView: View {
                             Spacer()
                             Text(summary(record))
                                 .foregroundStyle(record.failedCount > 0 ? .red : .secondary)
+                                .help(record.alreadyInstalledNames.map { "Already there: \($0.formatted(.list(type: .and)))" } ?? "")
                         }
                     }
                 }

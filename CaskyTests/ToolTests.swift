@@ -41,7 +41,7 @@ import Testing
     @Test func environmentIsAllowlisted() {
         let brew = Homebrew(executable: URL(fileURLWithPath: "/opt/homebrew/bin/brew"))
         #expect(brew.prefix.path == "/opt/homebrew")
-        let base: Set = ["HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "PATH", "HOMEBREW_NO_ENV_HINTS", "HOMEBREW_NO_AUTO_UPDATE"]
+        let base: Set = ["HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "PATH", "HOMEBREW_NO_ENV_HINTS", "HOMEBREW_NO_AUTO_UPDATE", "HOMEBREW_NO_ANALYTICS", "HOMEBREW_NO_UPDATE_REPORT_NEW", "HOMEBREW_UPGRADE_GREEDY"]
         #expect(Set(brew.environment().keys).isSubset(of: base))
         #expect(brew.environment()["PATH"] == "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
 

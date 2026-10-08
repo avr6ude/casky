@@ -152,6 +152,7 @@
     "summary": "Launchers, window tools and planners.",
     "items": [
       {"cask": "raycast"},
+      {"cask": "vicinae"},
       {"cask": "rectangle"},
       {"cask": "bartender"},
       {"cask": "cleanshot"},

@@ -63,6 +63,13 @@ final class AppModel {
     var isPreparing = false
     /// Live output of the step being installed.
     var currentOutput: [String] = []
+    /// When the step in flight started, to say when it's taking long.
+    var currentStepStarted: Date?
+
+    /// "Ghostty, Slack and 2 more", for tooltips and short lists.
+    func names(_ items: [Item]) -> String {
+        items.map { displayEntry(for: $0).title }.formatted(.list(type: .and))
+    }
     /// A non-fatal problem during the run (e.g. `brew update` failed).
     var runNote: String?
     /// What the current or last run was asked to do, for Retry.
@@ -434,7 +441,7 @@ final class AppModel {
 
     func record(_ run: RunState) {
         guard !run.plan.steps.isEmpty else { return }
-        let record = RunRecord(run: run, date: .now) { title(for: $0) }
+        let record = RunRecord(run: run, date: .now, title: { title(for: $0) }, itemTitle: { displayEntry(for: $0).title })
         history = RunRecord.appending(record, to: history)
         guard historyLoadError == nil else { return }
         do {

@@ -17,14 +17,17 @@ struct RunRecord: Codable, Hashable, Identifiable, Sendable {
     let date: Date
     let steps: [Step]
     let alreadyInstalled: Int
+    /// Their names, for the tooltip. Missing in records from before.
+    var alreadyInstalledNames: [String]? = nil
 
     var installedCount: Int { steps.filter { $0.result == .installed }.count }
     var failedCount: Int { steps.filter { if case .failed = $0.result { true } else { false } }.count }
 
-    init(run: RunState, date: Date, title: (InstallStep.Action) -> String) {
+    init(run: RunState, date: Date, title: (InstallStep.Action) -> String, itemTitle: (Item) -> String = { $0.technicalName }) {
         id = UUID()
         self.date = date
         alreadyInstalled = run.plan.alreadyInstalled.count
+        alreadyInstalledNames = run.plan.alreadyInstalled.map(itemTitle)
         steps = run.plan.steps.map { step in
             let result: Step.Result = switch run.outcomes[step.action] {
             case .installed: .installed

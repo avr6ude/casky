@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 extension AppModel {
     /// What installing `items` (the selection by default) would do right now.
@@ -110,11 +110,16 @@ extension AppModel {
 
         while let step = run?.nextStep() {
             currentOutput = []
+            currentStepStarted = .now
             // Await first: `run` may change (Stop) while the step runs.
             let outcome = await execute(step, with: homebrew)
             run?.finish(outcome, log: step.action.item == nil ? currentOutput : [])
         }
+        currentStepStarted = nil
         if let run { record(run) }
+        // The run window stays up with the result; get attention if the
+        // user switched away during a long install.
+        if !NSApp.isActive { NSApp.requestUserAttention(.informationalRequest) }
         // The run is over for the user; refreshing what's installed can
         // take a few seconds and shouldn't keep the sheet on "Installing…".
         isInstalling = false

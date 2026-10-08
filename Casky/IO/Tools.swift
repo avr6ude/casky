@@ -35,6 +35,11 @@ struct Homebrew: Sendable {
         }
         environment["PATH"] = "\(prefix.path)/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         environment["HOMEBREW_NO_ENV_HINTS"] = "1"
+        environment["HOMEBREW_NO_ANALYTICS"] = "1"
+        // casky shows what changed itself; the "new formulae" list is noise.
+        environment["HOMEBREW_NO_UPDATE_REPORT_NEW"] = "1"
+        // Upgrade apps that update themselves (or are versioned "latest") too.
+        environment["HOMEBREW_UPGRADE_GREEDY"] = "1"
         // Preflight runs `brew update` once instead of before every command.
         environment["HOMEBREW_NO_AUTO_UPDATE"] = "1"
         if let askpassItem, let askpass = Bundle.main.url(forResource: "askpass", withExtension: nil) {

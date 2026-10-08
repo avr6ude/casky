@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 enum Destination: Hashable {
-    case home
     case selection
     case history
     case updates
@@ -38,7 +37,8 @@ struct RootView: View {
             model.revealSetup = nil
         }
         .modifier(Prompts())
-        .sheet(isPresented: Binding(get: { model.run != nil }, set: { if !$0 { model.dismissRun() } })) {
+        // Only Done closes it, so the result stays up after the last step.
+        .sheet(isPresented: Binding(get: { model.run != nil }, set: { _ in })) {
             if let run = model.run { RunView(run: run) }
         }
         .sheet(item: Bindable(model).previewEntry) { entry in
@@ -59,7 +59,7 @@ struct RootView: View {
                 // when the content (an empty state) is short.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if !model.selection.isEmpty, destination != .home {
+                    if !model.selection.isEmpty {
                         SelectionBar { destination = .selection }
                     }
                 }
@@ -74,8 +74,6 @@ struct RootView: View {
 
     @ViewBuilder private var detail: some View {
         switch destination ?? .browse(nil) {
-        case .home:
-            OnboardingView { destination = .browse(nil) }
         case .selection:
             SelectionView()
         case .history:
@@ -110,7 +108,6 @@ private struct Sidebar: View {
 
     var body: some View {
         List(selection: $destination) {
-            Label("Start", systemImage: "sparkles.rectangle.stack").tag(Destination.home)
             Label("Selected", systemImage: "checklist")
                 .badge(model.selection.count)
                 .tag(Destination.selection)
