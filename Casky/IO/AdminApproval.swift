@@ -45,7 +45,7 @@ enum AdminApproval {
         forget()
         var item = query
         item[kSecValueData as String] = Data(password.utf8)
-        item[kSecAttrLabel as String] = "casky admin approval"
+        item[kSecAttrLabel as String] = "Casky admin approval"
         item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         SecItemAdd(item as CFDictionary, nil)
     }
@@ -65,7 +65,7 @@ enum AdminApproval {
     }
 
     /// The system prompt: Touch ID, or the account password in the
-    /// system's own sheet. `reason` completes "casky is trying to …".
+    /// system's own sheet. `reason` completes "Casky is trying to …".
     static func approve(reason: String) -> Bool {
         let context = LAContext()
         let done = DispatchSemaphore(value: 0)

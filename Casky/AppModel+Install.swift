@@ -80,7 +80,7 @@ extension AppModel {
         // dotfiles and preferences, so it runs and says what will fail.
         if connection == .offline, !isSetup {
             alertTitle = "You're offline"
-            alertMessage = "casky can install and update once you're back online. Everything else keeps working."
+            alertMessage = "Casky can install and update once you're back online. Everything else keeps working."
             return
         }
         lostConnectionDuringRun = false
@@ -177,7 +177,7 @@ extension AppModel {
         let (lines, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(1000))
         if case .hold(let item) = step.action, item.kind != .formula {
             setHeld(item, true)
-            currentOutput = ["casky leaves \(displayEntry(for: item).title) out of Update All from now on."]
+            currentOutput = ["Casky leaves \(displayEntry(for: item).title) out of Update All from now on."]
             return .installed
         }
         let checkouts = dotfilesDirectory, dotfileBackups = dotfilesBackupsDirectory, preferenceBackups = preferencesBackupsDirectory

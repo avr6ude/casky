@@ -5,7 +5,7 @@ struct CaskyApp: App {
     @AppStorage("onboardingComplete") private var onboardingComplete = false
 
     var body: some Scene {
-        Window("casky", id: "main") {
+        Window("Casky", id: "main") {
             RootView()
                 .environment(model)
                 .frame(minWidth: 820, minHeight: 520)

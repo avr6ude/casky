@@ -74,8 +74,8 @@ enum SetupFileError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unreadable: "This isn't a casky setup file, or it's damaged."
-        case .newer: "This setup was saved by a newer version of casky. Update casky to open it."
+        case .unreadable: "This isn't a Casky setup file, or it's damaged."
+        case .newer: "This setup was saved by a newer version of Casky. Update Casky to open it."
         }
     }
 }

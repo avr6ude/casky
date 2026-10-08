@@ -1,5 +1,5 @@
 #!/bin/sh
-# Daily update, run by launchd once it's turned on in casky's Settings.
+# Daily update, run by launchd once it's turned on in Casky's Settings.
 # Upgrades Homebrew apps (casks); apps that update themselves are left alone,
 # as with `brew upgrade --cask`. Runs unattended: an upgrade that needs the
 # Mac password fails and is logged instead of prompting.

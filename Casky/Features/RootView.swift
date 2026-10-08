@@ -203,19 +203,19 @@ private struct StatusFooter: View {
                 .help(error)
             }
             if let error = model.historyLoadError {
-                Label("Install history couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
+                Label("Install history couldn't be read. Casky won't change the file.", systemImage: "exclamationmark.triangle")
                     .help(error)
             }
             if let error = model.tapsLoadError {
-                Label("Taps couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
+                Label("Taps couldn't be read. Casky won't change the file.", systemImage: "exclamationmark.triangle")
                     .help(error)
             }
             if let error = model.setupsLoadError {
-                Label("Saved setups couldn't be read. casky won't change the file.", systemImage: "exclamationmark.triangle")
+                Label("Saved setups couldn't be read. Casky won't change the file.", systemImage: "exclamationmark.triangle")
                     .help(error)
             }
             if model.homebrew == nil {
-                Label("Homebrew not found. casky needs it to install.", systemImage: "exclamationmark.triangle")
+                Label("Homebrew not found. Casky needs it to install.", systemImage: "exclamationmark.triangle")
             } else if let error = model.installedError {
                 Label("Couldn't check what's installed.", systemImage: "exclamationmark.triangle")
                     .help(error)
@@ -258,7 +258,7 @@ private struct Prompts: ViewModifier {
                 case .newSetup(let items, _):
                     Text("^[\(items.count) item](inflect: true) will be saved on this Mac.")
                 case .addTap:
-                    Text("casky lists the tap's apps and tools from GitHub. Installing one adds the tap to Homebrew.")
+                    Text("Casky lists the tap's apps and tools from GitHub. Installing one adds the tap to Homebrew.")
                 case .rename:
                     EmptyView()
                 }
@@ -303,7 +303,7 @@ private struct Prompts: ViewModifier {
             lines.append("Options on \(result.optionsIgnored) lines were ignored.")
         }
         if !result.skipped.isEmpty {
-            lines.append("Skipped \(result.skipped.count) lines casky can't read safely:")
+            lines.append("Skipped \(result.skipped.count) lines Casky can't read safely:")
             lines.append(contentsOf: result.skipped.prefix(8))
             if result.skipped.count > 8 { lines.append("…and \(result.skipped.count - 8) more") }
         }

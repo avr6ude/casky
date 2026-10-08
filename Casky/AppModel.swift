@@ -417,7 +417,7 @@ final class AppModel {
     /// Snapshot of what's installed on purpose, offered as a new setup.
     func promptToSaveThisMac() async {
         guard homebrew != nil else {
-            alertMessage = "casky needs Homebrew to see what's installed on this Mac."
+            alertMessage = "Casky needs Homebrew to see what's installed on this Mac."
             return
         }
         await refreshInstalled()

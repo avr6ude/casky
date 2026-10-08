@@ -44,7 +44,7 @@ enum AnsiblePlaybook {
         }
         let heldApps = items.filter { $0.kind == .cask && setup.rule(for: $0) == .hold }.map(\.technicalName)
         if !heldApps.isEmpty {
-            tasks.append("# Held at their version in casky (Homebrew can't pin apps): \(comment(heldApps.joined(separator: ", ")))")
+            tasks.append("# Held at their version in Casky (Homebrew can't pin apps): \(comment(heldApps.joined(separator: ", ")))")
         }
         for (state, rules, verb) in [("present", Set<PackagePolicy.Rule?>([nil, .hold]), "Install"), ("latest", [.keepUpdated], "Install and update"), ("absent", [.remove], "Remove")] {
             let chosen = apps.filter { rules.contains($0.rule) }

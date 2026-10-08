@@ -1,9 +1,9 @@
-# casky
+# Casky
 
-A native macOS app for setting up a Mac: pick a kit or search, then install apps (Homebrew casks), command-line tools (formulae) and Mac App Store apps in one go. Homebrew and [`mas`](https://github.com/mas-cli/mas) do the installing; casky is the friendly layer on top.
+A native macOS app for setting up a Mac: pick a kit or search, then install apps (Homebrew casks), command-line tools (formulae) and Mac App Store apps in one go. Homebrew and [`mas`](https://github.com/mas-cli/mas) do the installing; Casky is the friendly layer on top.
 
 - Kits, saved setups, and "Save This Mac" snapshots
-- Package rules in saved setups: install, keep updated, hold at a version (`brew pin` for tools; casky leaves held apps out of Update All) or remove, and pick which version of a versioned tool (`node`, `node@22`)
+- Package rules in saved setups: install, keep updated, hold at a version (`brew pin` for tools; Casky leaves held apps out of Update All) or remove, and pick which version of a versioned tool (`node`, `node@22`)
 - Editor setup: save VS Code and Cursor extensions with a setup (or take this Mac's), install them on Apply; settings, keybindings and snippets restore through Dotfiles, which suggests each editor's settings folder
 - Homebrew services in setups: run at login, run now only, or stopped; Apply Setup and the Ansible export bring each service to that state
 - Global packages in setups: npm, pipx, uv and Cargo tools, saved by hand or from this Mac, installed on Apply after their manager
@@ -17,7 +17,7 @@ A native macOS app for setting up a Mac: pick a kit or search, then install apps
 - Asks for your Mac password in a native dialog only when an install needs it
 - Optional daily app updates (Settings), run by a launchd agent you can also turn off in Login Items
 
-Requires macOS 26 and Homebrew (casky offers to download the official installer if it's missing).
+Requires macOS 26 and Homebrew (Casky offers to download the official installer if it's missing).
 
 ## Develop
 
@@ -56,4 +56,4 @@ Open a saved setup and select **Mac Preferences**. Dock, Finder, keyboard and sc
 
 ## License
 
-MIT for the casky source. Package metadata comes from the Homebrew project and the App Store.
+MIT for the Casky source. Package metadata comes from the Homebrew project and the App Store.

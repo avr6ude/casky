@@ -30,7 +30,7 @@ struct SettingsView: View {
             } header: {
                 Text("Homebrew")
             } footer: {
-                Text("casky runs Homebrew with a clean environment. Proxy settings and HOMEBREW_* variables from your shell profile aren't applied.")
+                Text("Casky runs Homebrew with a clean environment. Proxy settings and HOMEBREW_* variables from your shell profile aren't applied.")
                     .foregroundStyle(.secondary)
             }
 
@@ -49,7 +49,7 @@ struct SettingsView: View {
             } header: {
                 Text("Admin Prompts")
             } footer: {
-                Text("Installs that need admin rights ask with the system prompt, like anything else on your Mac. The first one asks for your Mac password once and keeps it in your keychain, because Homebrew's sudo needs it; Forget removes it and casky asks again next time.")
+                Text("Installs that need admin rights ask with the system prompt, like anything else on your Mac. The first one asks for your Mac password once and keeps it in your keychain, because Homebrew's sudo needs it; Forget removes it and Casky asks again next time.")
                     .foregroundStyle(.secondary)
             }
 
@@ -71,7 +71,7 @@ struct SettingsView: View {
                 ))
                 if updateStatus == .requiresApproval {
                     HStack {
-                        Text("Allow casky in Login Items to finish turning this on.")
+                        Text("Allow Casky in Login Items to finish turning this on.")
                             .foregroundStyle(.secondary)
                         Spacer()
                         Button("Open Login Items") { AutoUpdate.openLoginItemsSettings() }
@@ -91,7 +91,7 @@ struct SettingsView: View {
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Every day at 9:00, while you're logged in, casky upgrades your Homebrew apps. Apps that update themselves are skipped, and anything that needs your password is left for you.")
+                Text("Every day at 9:00, while you're logged in, Casky upgrades your Homebrew apps. Apps that update themselves are skipped, and anything that needs your password is left for you.")
                     .foregroundStyle(.secondary)
             }
         }

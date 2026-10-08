@@ -150,7 +150,7 @@ struct ItemRow: View {
                           : "Update available: \(update.versions). Installed outside Homebrew; updating lets Homebrew replace and manage it.")
             } else if isInstalled {
                 Pill.installed
-                    .help(isManaged ? "Installed with Homebrew" : "Installed outside Homebrew, so casky leaves it alone")
+                    .help(isManaged ? "Installed with Homebrew" : "Installed outside Homebrew, so Casky leaves it alone")
             }
 
             if let accessory {

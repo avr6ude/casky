@@ -40,7 +40,7 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         HStack {
-            Text(page == 0 ? "Welcome to casky" : page == reviewPage ? "Review" : "Step \(page) of \(steps.count)")
+            Text(page == 0 ? "Welcome to Casky" : page == reviewPage ? "Review" : "Step \(page) of \(steps.count)")
                 .font(.headline)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -102,7 +102,7 @@ private struct SetupToolsPage: View {
             VStack(spacing: 10) {
                 Text("Set up this Mac in a few clicks")
                     .font(.largeTitle.bold())
-                Text("Pick the apps you use and casky installs them for you. It works with Homebrew, and with mas for App Store apps.")
+                Text("Pick the apps you use and Casky installs them for you. It works with Homebrew, and with mas for App Store apps.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -151,7 +151,7 @@ private struct SetupToolsPage: View {
             .frame(maxWidth: 560)
             .background(.fill.quinary, in: .rect(cornerRadius: 12))
             if installingHomebrew || (model.homebrew == nil && !installingHomebrew) {
-                Text("Homebrew's installer opens in a separate window. casky notices when it's done.")
+                Text("Homebrew's installer opens in a separate window. Casky notices when it's done.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -300,7 +300,7 @@ private struct ReviewPage: View {
                     Text(picks.isEmpty ? "Nothing picked" : "Ready to install").font(.largeTitle.bold())
                     Text(picks.isEmpty
                          ? "That's fine: browse apps, kits and the App Store any time from the sidebar."
-                         : "casky installs these one by one. Apps that need approval ask for Touch ID or your password.")
+                         : "Casky installs these one by one. Apps that need approval ask for Touch ID or your password.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

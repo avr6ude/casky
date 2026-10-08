@@ -1,5 +1,5 @@
 #!/bin/sh
-# SUDO_ASKPASS for casky: sudo runs this when an install needs admin rights.
-# casky itself answers (see AdminApproval.swift): the system Touch ID or
+# SUDO_ASKPASS for Casky: sudo runs this when an install needs admin rights.
+# Casky itself answers (see AdminApproval.swift): the system Touch ID or
 # password prompt, then the password for sudo on stdout.
 exec "$(dirname "$0")/../MacOS/Casky" --askpass

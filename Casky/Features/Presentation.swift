@@ -55,7 +55,7 @@ struct ConnectionBanner: View {
     var body: some View {
         switch model.connection {
         case .offline:
-            strip("You're offline. Browsing uses what casky already has; installs, updates and App Store search wait until you're back.",
+            strip("You're offline. Browsing uses what Casky already has; installs, updates and App Store search wait until you're back.",
                   symbol: "wifi.slash", tint: .orange)
         case .backOnline:
             strip("Back online.", symbol: "wifi", tint: .green)

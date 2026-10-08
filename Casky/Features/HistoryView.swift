@@ -10,7 +10,7 @@ struct HistoryView: View {
                 ContentUnavailableView(
                     "No installs yet",
                     systemImage: "clock.arrow.circlepath",
-                    description: Text("Each time casky installs something, it's listed here.")
+                    description: Text("Each time Casky installs something, it's listed here.")
                 )
             } else {
                 List(model.history) { record in

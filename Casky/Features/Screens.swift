@@ -424,7 +424,7 @@ struct CatalogGate<Content: View>: View {
             ContentUnavailableView {
                 Label(model.connection == .offline ? "You're offline" : "Couldn't load the Homebrew catalog", systemImage: "wifi.exclamationmark")
             } description: {
-                Text(model.connection == .offline ? "casky downloads the list of apps and tools once, then works from it. It loads as soon as you're back online." : message)
+                Text(model.connection == .offline ? "Casky downloads the list of apps and tools once, then works from it. It loads as soon as you're back online." : message)
             } actions: {
                 Button("Try Again") { Task { await model.refreshCatalog() } }
                     .disabled(model.isRefreshingCatalog)
@@ -486,14 +486,14 @@ private struct InstallConfirmation: ViewModifier {
         let installs = plan.steps.compactMap { if case .install(let item) = $0.action { item } else { nil } }
         let needsPassword = installs.filter { if case .mas = $0 { true } else { model.catalog?.entry(for: $0)?.needsAdmin == true } }
         content
-            .alert("casky needs Homebrew", isPresented: presented(when: model.homebrew == nil)) {
+            .alert("Casky needs Homebrew", isPresented: presented(when: model.homebrew == nil)) {
                 Button("Download Homebrew Installer") {
                     isPresented = false
                     Task { await model.installHomebrew() }
                 }
                 Button("Cancel", role: .cancel) { isPresented = false }
             } message: {
-                Text("Homebrew installs the apps and tools. casky will download Homebrew's official installer from GitHub and open it. Come back here when it's done.")
+                Text("Homebrew installs the apps and tools. Casky will download Homebrew's official installer from GitHub and open it. Come back here when it's done.")
             }
             .confirmationDialog(
                 installs.isEmpty ? "Everything selected is already installed" : "Install \(installs.count) \(installs.count == 1 ? "item" : "items")?",
