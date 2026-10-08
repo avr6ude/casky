@@ -20,6 +20,7 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             topBar
             Divider()
+            ConnectionBanner()
             Group {
                 if page == 0 {
                     SetupToolsPage()

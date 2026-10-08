@@ -10,6 +10,18 @@ struct RunView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+            if model.connection == .offline, model.isInstalling {
+                Label("The connection dropped. Downloads fail until it's back; Retry Unfinished picks up whatever didn't finish.", systemImage: "wifi.slash")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            } else if model.lostConnectionDuringRun, !model.isInstalling, run.failedCount > 0 {
+                Label(model.connection == .offline
+                      ? "The connection dropped during this run. Retry once you're back online."
+                      : "You're back online. Retry Unfinished to finish what the dropped connection stopped.",
+                      systemImage: model.connection == .offline ? "wifi.slash" : "wifi")
+                    .font(.callout)
+                    .foregroundStyle(model.connection == .offline ? .orange : .green)
+            }
             if let note = model.runNote {
                 Label(note, systemImage: "info.circle")
                     .font(.callout)
@@ -78,7 +90,14 @@ struct RunView: View {
                     .disabled(run.stopRequested || model.isPreparing)
             } else {
                 if run.failedCount > 0 || run.stopRequested {
-                    Button("Retry Unfinished") { Task { await model.retryLastRun() } }
+                    let retry = Button("Retry Unfinished") { Task { await model.retryLastRun() } }
+                        .disabled(model.connection == .offline && !model.isSetupRun)
+                    // Back online after a dropped connection: Retry is the next step.
+                    if model.lostConnectionDuringRun, model.connection != .offline {
+                        retry.buttonStyle(.borderedProminent)
+                    } else {
+                        retry
+                    }
                 }
                 Button("Done") { model.dismissRun() }
                     .keyboardShortcut(.defaultAction)

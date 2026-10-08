@@ -48,6 +48,34 @@ extension PackagePolicy.Rule {
     }
 }
 
+/// Offline, or just back: a strip across the top of the content.
+struct ConnectionBanner: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        switch model.connection {
+        case .offline:
+            strip("You're offline. Browsing uses what casky already has; installs, updates and App Store search wait until you're back.",
+                  symbol: "wifi.slash", tint: .orange)
+        case .backOnline:
+            strip("Back online.", symbol: "wifi", tint: .green)
+        case .online:
+            EmptyView()
+        }
+    }
+
+    private func strip(_ text: String, symbol: String, tint: Color) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.callout)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(tint.opacity(0.15))
+            .overlay(alignment: .bottom) { Divider() }
+            .transition(.move(edge: .top).combined(with: .opacity))
+    }
+}
+
 /// A small status pill: "Installed", "Asks for Touch ID".
 struct Pill: View {
     let text: String

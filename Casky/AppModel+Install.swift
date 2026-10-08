@@ -75,6 +75,15 @@ extension AppModel {
         // A setup can also restore dotfiles and preferences without Homebrew;
         // its package steps then fail and say why.
         guard !isInstalling, homebrew != nil || { if case .setup = kind { true } else { false } }() else { return }
+        let isSetup = if case .setup = kind { true } else { false }
+        // Installs and updates are all downloads; a setup can still restore
+        // dotfiles and preferences, so it runs and says what will fail.
+        if connection == .offline, !isSetup {
+            alertTitle = "You're offline"
+            alertMessage = "casky can install and update once you're back online. Everything else keeps working."
+            return
+        }
+        lostConnectionDuringRun = false
         isInstalling = true
         defer { isInstalling = false }
 
@@ -86,7 +95,11 @@ extension AppModel {
         run = RunState(plan: InstallPlan(steps: [], alreadyInstalled: []))
         isPreparing = true
         do {
-            _ = try await homebrew?.run(["update"])
+            if connection == .offline {
+                runNote = "You're offline: apps and tools will fail until you're back online. Dotfiles from a local folder and Mac preferences still apply."
+            } else {
+                _ = try await homebrew?.run(["update"])
+            }
         } catch {
             // Not fatal: Homebrew works with the package data it already has.
             runNote = "Couldn't update Homebrew first: \(Self.describe(error))"

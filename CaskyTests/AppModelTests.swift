@@ -37,6 +37,22 @@ import Testing
         #expect(model.displayEntry(for: .cask(try Ref(parsing: "a"))).title == "a")
     }
 
+    @Test func offlineBlocksInstallsAndComesBack() async throws {
+        let model = AppModel(dataDirectory: directory, defaults: UserDefaults(suiteName: "casky-tests-\(UUID().uuidString)")!,
+                             locateHomebrew: { _ in Homebrew(executable: URL(fileURLWithPath: "/usr/bin/false")) }, applicationFolders: [], kits: [])
+        model.setOnline(false)
+        #expect(model.connection == .offline)
+
+        await model.install([.formula(try Ref(parsing: "git"))])
+        #expect(model.run == nil)
+        #expect(model.alertTitle == "You're offline")
+
+        model.setOnline(true)
+        #expect(model.connection == .backOnline)
+        model.setOnline(true)
+        #expect(model.connection == .backOnline)
+    }
+
     @Test func missingCacheAndNoNetworkFailsLoudly() async {
         var fetch = CatalogFetch()
         fetch.cacheFile = FileManager.default.temporaryDirectory.appending(path: "casky-tests-\(UUID().uuidString)/catalog.json")

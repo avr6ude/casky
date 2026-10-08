@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import Observation
 
 /// Owns everything the window shows: catalog, installed state, kits and the
@@ -55,6 +56,21 @@ final class AppModel {
     var lastImport: Brewfile.Import?
     /// An error the user needs to see now (file read/write failures).
     var alertMessage: String?
+    /// Defaults to "Something went wrong".
+    var alertTitle: String?
+
+    enum Connection: Equatable {
+        case online
+        case offline
+        /// Just reconnected; shown for a few seconds while casky catches up.
+        case backOnline
+    }
+
+    private(set) var connection = Connection.online
+    /// The connection dropped while a run was going: its downloads failed
+    /// for that reason, and Retry is the fix once it's back.
+    var lostConnectionDuringRun = false
+    private var pathMonitor: NWPathMonitor?
 
     /// The current or last install run; nil when none is shown.
     var run: RunState?
@@ -159,6 +175,7 @@ final class AppModel {
     /// Cached catalog first for an instant launch, then a background refresh
     /// when it is missing or stale.
     func start() async {
+        watchConnection()
         async let installed: Void = refreshInstalled()
         let fetch = fetch
         let cached = await Task.detached { fetch.cached() }.value
@@ -170,6 +187,39 @@ final class AppModel {
         }
         await installed
         await refreshUpdates()
+    }
+
+    private func watchConnection() {
+        guard pathMonitor == nil else { return }
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            let isOnline = path.status == .satisfied
+            Task { @MainActor in self?.setOnline(isOnline) }
+        }
+        monitor.start(queue: DispatchQueue(label: "casky.connection"))
+        pathMonitor = monitor
+    }
+
+    /// Going offline only changes what the window says. Coming back
+    /// redoes whatever failed for lack of a connection: the catalog,
+    /// the update check, what's installed.
+    func setOnline(_ isOnline: Bool) {
+        switch (connection, isOnline) {
+        case (.offline, true):
+            connection = .backOnline
+            Task {
+                if catalog == nil || catalogRefreshError != nil { await refreshCatalog() }
+                await refreshInstalled()
+                await refreshUpdates()
+                try? await Task.sleep(for: .seconds(5))
+                if connection == .backOnline { connection = .online }
+            }
+        case (.online, false), (.backOnline, false):
+            connection = .offline
+            if isInstalling { lostConnectionDuringRun = true }
+        default:
+            break
+        }
     }
 
     func refreshCatalog() async {

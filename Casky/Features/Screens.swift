@@ -422,9 +422,9 @@ struct CatalogGate<Content: View>: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let message):
             ContentUnavailableView {
-                Label("Couldn't load the Homebrew catalog", systemImage: "wifi.exclamationmark")
+                Label(model.connection == .offline ? "You're offline" : "Couldn't load the Homebrew catalog", systemImage: "wifi.exclamationmark")
             } description: {
-                Text(message)
+                Text(model.connection == .offline ? "casky downloads the list of apps and tools once, then works from it. It loads as soon as you're back online." : message)
             } actions: {
                 Button("Try Again") { Task { await model.refreshCatalog() } }
                     .disabled(model.isRefreshingCatalog)

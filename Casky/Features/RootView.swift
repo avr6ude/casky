@@ -58,6 +58,8 @@ struct RootView: View {
                 // Fill the column so the bar sits at the window's bottom even
                 // when the content (an empty state) is short.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .top, spacing: 0) { ConnectionBanner() }
+                .animation(.default, value: model.connection)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if !model.selection.isEmpty {
                         SelectionBar { destination = .selection }
@@ -275,8 +277,8 @@ private struct Prompts: ViewModifier {
             } message: { result in
                 Text(importSummary(result))
             }
-            .alert("Something went wrong", isPresented: isPresented($model.alertMessage), presenting: model.alertMessage) { _ in
-                Button("OK") {}
+            .alert(model.alertTitle ?? "Something went wrong", isPresented: isPresented($model.alertMessage), presenting: model.alertMessage) { _ in
+                Button("OK") { model.alertTitle = nil }
             } message: { message in
                 Text(message)
             }
