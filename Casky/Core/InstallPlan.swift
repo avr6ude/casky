@@ -139,9 +139,11 @@ struct InstallPlan: Sendable {
 
     /// - Parameter appBundles: the `.app` each selected app installs, so apps
     ///   already in an Applications folder are skipped too.
-    init(selection: [Item], installed: InstalledState, appBundles: [Item: String] = [:], needsAdmin: Set<Item> = []) {
+    /// - Parameter conflicts: casks each selected cask can't be installed
+    ///   alongside; one of them being installed counts as installed.
+    init(selection: [Item], installed: InstalledState, appBundles: [Item: String] = [:], conflicts: [Item: [Item]] = [:], needsAdmin: Set<Item> = []) {
         let selection = selection.uniqued()
-        let isPresent = { installed.isPresent($0, appBundle: appBundles[$0]) }
+        let isPresent = { installed.isPresent($0, appBundle: appBundles[$0], conflicts: conflicts[$0] ?? []) }
         let pending = selection.filter { !isPresent($0) }
         alreadyInstalled = selection.filter(isPresent)
 

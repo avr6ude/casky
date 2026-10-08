@@ -79,3 +79,27 @@ import Testing
         #expect(playbook.contains("Homebrew can't pin apps): slack"))
     }
 }
+
+@Suite struct CaskVariantTests {
+    private let casks = #"""
+    [{"token":"ghostty","name":["Ghostty"],"desc":null,"homepage":null,"version":"1.2","deprecated":false,"disabled":false,"artifacts":[{"app":["Ghostty.app"]}],"conflicts_with":{"cask":["ghostty@tip"]}},
+     {"token":"ghostty@tip","name":["Ghostty"],"desc":null,"homepage":null,"version":"tip","deprecated":false,"disabled":false,"artifacts":[{"app":["Ghostty.app"]}],"conflicts_with":{"cask":["ghostty"]}},
+     {"token":"slack","name":["Slack"],"desc":null,"homepage":null,"version":"4","deprecated":false,"disabled":false,"artifacts":[],"conflicts_with":null}]
+    """#
+
+    @Test func variantsGetDistinctTitlesAndKnowTheirConflicts() throws {
+        let entries = try Catalog.decodeHomebrew(casks: Data(casks.utf8), formulae: Data("[]".utf8), caskInstalls: nil, formulaInstalls: nil)
+        #expect(entries.map(\.title) == ["Ghostty", "Ghostty (tip)", "Slack"])
+        #expect(entries[1].conflicts == [.cask(try Ref(parsing: "ghostty"))])
+        #expect(entries[2].conflicts == nil)
+    }
+
+    @Test func anInstalledVariantCountsAsInstalled() throws {
+        let tip = Item.cask(try Ref(parsing: "ghostty@tip")), stable = Item.cask(try Ref(parsing: "ghostty"))
+        let installed = InstalledState(casks: ["ghostty"])
+        #expect(installed.isPresent(tip, appBundle: nil, conflicts: [stable]))
+        let plan = InstallPlan(selection: [tip], installed: installed, conflicts: [tip: [stable]])
+        #expect(plan.steps.isEmpty)
+        #expect(plan.alreadyInstalled == [tip])
+    }
+}

@@ -28,8 +28,11 @@ struct InstalledState: Sendable {
     /// Installed through Homebrew or `mas`, or, for apps, present in an
     /// Applications folder: a drag-installed VS Code counts, and Homebrew
     /// would refuse to install over it anyway.
-    func isPresent(_ item: Item, appBundle: String?) -> Bool {
-        if contains(item) { return true }
+    ///
+    /// Another version of the same app (a cask it conflicts with) counts
+    /// too: Homebrew refuses to install both.
+    func isPresent(_ item: Item, appBundle: String?, conflicts: [Item] = []) -> Bool {
+        if contains(item) || conflicts.contains(where: contains) { return true }
         guard let appBundle else { return false }
         return appBundles.contains(appBundle.lowercased())
     }

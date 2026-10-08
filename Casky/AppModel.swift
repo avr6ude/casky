@@ -244,7 +244,8 @@ final class AppModel {
     }
 
     func isInstalled(_ item: Item) -> Bool {
-        installed.isPresent(item, appBundle: entry(for: item)?.appBundleName)
+        let entry = entry(for: item)
+        return installed.isPresent(item, appBundle: entry?.appBundleName, conflicts: entry?.conflicts ?? [])
     }
 
     /// Whether Homebrew or `mas` manages it, as opposed to an app that was

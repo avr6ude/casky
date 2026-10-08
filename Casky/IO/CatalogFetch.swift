@@ -5,7 +5,7 @@ import Foundation
 /// once the copy is stale.
 struct CatalogFetch: Sendable {
     var session: URLSession = .shared
-    var cacheFile: URL = URL.cachesDirectory.appending(path: "casky/catalog-v3.json")
+    var cacheFile: URL = URL.cachesDirectory.appending(path: "casky/catalog-v4.json")
     var maxAge: TimeInterval = 24 * 60 * 60
 
     struct Cached: Sendable {

@@ -5,9 +5,11 @@ extension AppModel {
     func previewPlan(for items: [Item]? = nil) -> InstallPlan {
         let selection = items ?? selection
         let bundles = selection.compactMap { item in entry(for: item)?.appBundleName.map { (item, $0) } }
+        let conflicts = selection.compactMap { item in entry(for: item)?.conflicts.map { (item, $0) } }
         return InstallPlan(
             selection: selection, installed: installed,
             appBundles: Dictionary(bundles, uniquingKeysWith: { first, _ in first }),
+            conflicts: Dictionary(conflicts, uniquingKeysWith: { first, _ in first }),
             needsAdmin: catalog?.adminItems ?? []
         )
     }

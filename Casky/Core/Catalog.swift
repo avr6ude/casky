@@ -17,6 +17,9 @@ struct CatalogEntry: Codable, Hashable, Identifiable, Sendable {
     /// Latest version Homebrew offers (casks), for spotting updates of apps
     /// installed outside Homebrew.
     var version: String? = nil
+    /// Casks Homebrew won't install alongside this one, usually other
+    /// versions of the same app (`ghostty` and `ghostty@tip`).
+    var conflicts: [Item]? = nil
 
     var id: Item { item }
 }
@@ -119,15 +122,23 @@ extension Catalog {
                 installs: formulaCounts[raw.name] ?? 0, needsAdmin: false
             )
         }
-        let caskEntries = try decoder.decode([RawCask].self, from: casks).compactMap { raw -> CatalogEntry? in
-            guard !raw.deprecated, !raw.disabled, let ref = try? Ref(parsing: raw.token) else { return nil }
+        let rawCasks = try decoder.decode([RawCask].self, from: casks).filter { !$0.deprecated && !$0.disabled }
+        // Versions of one app share a name ("Ghostty"); say which is which.
+        let names = Dictionary(grouping: rawCasks, by: { $0.name?.first ?? $0.token }).filter { $0.value.count > 1 }
+        let caskEntries = rawCasks.compactMap { raw -> CatalogEntry? in
+            guard let ref = try? Ref(parsing: raw.token) else { return nil }
+            var title = raw.name?.first ?? raw.token
+            if names[title] != nil, let variant = raw.token.split(separator: "@", maxSplits: 1).dropFirst().first {
+                title += " (\(variant))"
+            }
             return CatalogEntry(
-                item: .cask(ref), title: raw.name?.first ?? raw.token, summary: raw.desc,
+                item: .cask(ref), title: title, summary: raw.desc,
                 homepage: raw.homepage.flatMap(URL.init(string:)),
                 installs: caskCounts[raw.token] ?? 0,
                 needsAdmin: raw.artifacts.contains { !$0.keys.isDisjoint(with: ["pkg", "installer"]) },
                 appBundleName: raw.artifacts.lazy.compactMap(\.appName).first,
-                version: raw.version
+                version: raw.version,
+                conflicts: raw.conflicts_with?.cask?.compactMap { try? Item.cask(Ref(parsing: $0)) }
             )
         }
         return formulaEntries + caskEntries
@@ -150,6 +161,8 @@ extension Catalog {
         let deprecated: Bool
         let disabled: Bool
         let artifacts: [Artifact]
+        let conflicts_with: Conflicts?
+        struct Conflicts: Decodable { let cask: [String]? }
     }
 
     /// The artifact kinds (`app`, `pkg`, `installer`, ...) and, for `app`,
