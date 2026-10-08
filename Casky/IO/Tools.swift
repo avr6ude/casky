@@ -146,18 +146,70 @@ enum ToolRunner {
 
     /// Runs a command with stdout and stderr merged, delivering output line by
     /// line (`\r` progress updates count as lines), and returns the exit status.
+    ///
+    /// Cancelling the task ends the command and everything it started
+    /// (downloads, installers): Stop Now.
     static func stream(
         _ executable: URL,
         arguments: [String],
         environment: [String: String],
         onLine: @escaping @Sendable (String) -> Void
     ) async throws -> Int32 {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(with: Result {
-                    try streamBlocking(executable, arguments: arguments, environment: environment, onLine: onLine)
-                })
+        let running = RunningProcess()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(with: Result {
+                        try streamBlocking(executable, arguments: arguments, environment: environment, running: running, onLine: onLine)
+                    })
+                }
             }
+        } onCancel: {
+            running.terminate()
+        }
+    }
+
+    /// The process a cancellable `stream` runs, for ending it from another
+    /// thread, possibly before it has started.
+    private final class RunningProcess: @unchecked Sendable {
+        private let lock = NSLock()
+        private var process: Process?
+        private var isCancelled = false
+
+        /// False when it was cancelled before it started.
+        func attach(_ process: Process) -> Bool {
+            lock.withLock {
+                self.process = process
+                return !isCancelled
+            }
+        }
+
+        func terminate() {
+            let process = lock.withLock {
+                isCancelled = true
+                return self.process
+            }
+            if let process, process.isRunning { Self.terminateTree(process.processIdentifier) }
+        }
+
+        /// Children first, so Homebrew's downloads and installers don't
+        /// outlive it. sudo passes the signal on to what it runs as root.
+        private static func terminateTree(_ pid: pid_t) {
+            for child in children(of: pid) { terminateTree(child) }
+            kill(pid, SIGTERM)
+        }
+
+        private static func children(of pid: pid_t) -> [pid_t] {
+            let pgrep = Process()
+            pgrep.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+            pgrep.arguments = ["-P", String(pid)]
+            let output = Pipe()
+            pgrep.standardOutput = output
+            pgrep.standardError = FileHandle.nullDevice
+            guard (try? pgrep.run()) != nil else { return [] }
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            pgrep.waitUntilExit()
+            return String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline).compactMap { pid_t($0) }
         }
     }
 
@@ -180,6 +232,7 @@ enum ToolRunner {
         _ executable: URL,
         arguments: [String],
         environment: [String: String],
+        running: RunningProcess? = nil,
         onLine: (String) -> Void
     ) throws -> Int32 {
         let process = Process()
@@ -197,6 +250,7 @@ enum ToolRunner {
             let command = ([executable.lastPathComponent] + arguments).joined(separator: " ")
             throw ToolError.launchFailed(command: command, reason: error.localizedDescription)
         }
+        if let running, !running.attach(process) { running.terminate() }
         let handle = output.fileHandleForReading
         var buffer = Data()
         func emitLines(flush: Bool) {

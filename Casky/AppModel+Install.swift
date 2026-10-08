@@ -84,6 +84,7 @@ extension AppModel {
             return
         }
         lostConnectionDuringRun = false
+        stoppedNow = false
         isInstalling = true
         defer { isInstalling = false }
 
@@ -128,7 +129,13 @@ extension AppModel {
             currentStepStarted = .now
             // Await first: `run` may change (Stop) while the step runs.
             let outcome = await execute(step, with: homebrew)
-            run?.finish(outcome, log: step.action.item == nil ? currentOutput : [])
+            // A step that finished anyway (dotfiles, preferences) keeps its result.
+            if stoppedNow, outcome != .installed {
+                stoppedNow = false
+                run?.finish(.skipped(reason: "Stopped"))
+            } else {
+                run?.finish(outcome, log: step.action.item == nil ? currentOutput : [])
+            }
         }
         currentStepStarted = nil
         if let run { record(run) }
@@ -148,6 +155,16 @@ extension AppModel {
 
     func stopAfterCurrentStep() {
         run?.requestStop()
+    }
+
+    /// Ends the step in flight right away (and everything after it).
+    /// Homebrew leaves a half-finished download in its cache; the next try
+    /// starts over cleanly.
+    func stopNow() {
+        guard let task = currentStepTask else { return }
+        run?.requestStop()
+        stoppedNow = true
+        task.cancel()
     }
 
     func dismissRun() {
@@ -187,6 +204,8 @@ extension AppModel {
             currentOutput.append(line)
             if currentOutput.count > 500 { currentOutput.removeFirst(currentOutput.count - 500) }
         }
+        currentStepTask = task
+        defer { currentStepTask = nil }
         switch await task.result {
         case .success(0):
             return .installed

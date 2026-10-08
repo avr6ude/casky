@@ -82,6 +82,10 @@ final class AppModel {
     var currentOutput: [String] = []
     /// When the step in flight started, to say when it's taking long.
     var currentStepStarted: Date?
+    /// The step in flight, so Stop Now can end it.
+    var currentStepTask: Task<Int32, any Error>?
+    /// Stop Now ended the step in flight; it counts as stopped, not failed.
+    var stoppedNow = false
 
     /// "Ghostty, Slack and 2 more", for tooltips and short lists.
     func names(_ items: [Item]) -> String {

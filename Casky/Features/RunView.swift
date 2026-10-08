@@ -86,6 +86,9 @@ struct RunView: View {
         HStack {
             Spacer()
             if model.isInstalling {
+                Button("Stop Now", role: .destructive) { model.stopNow() }
+                    .disabled(model.isPreparing || run.current == nil)
+                    .help("End this install right away and skip the rest")
                 Button(run.current.map { "Stop After \(stopName($0.action))" } ?? "Stop After This Item") { model.stopAfterCurrentStep() }
                     .disabled(run.stopRequested || model.isPreparing)
             } else {

@@ -99,3 +99,23 @@ private final class LineCollector: @unchecked Sendable {
         #expect(!CommandLineTools.isMissing(in: ["Error: Cask 'ghostty@tip' conflicts with 'ghostty'."]))
     }
 }
+
+@Suite struct StopNowTests {
+    @Test func cancellingEndsTheCommandAndWhatItStarted() async throws {
+        let marker = "casky-stop-test-\(UUID().uuidString.prefix(8))"
+        let task = Task {
+            // The child sleep is what an installer or download would be.
+            try await ToolRunner.stream(URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", "exec -a \(marker) sleep 30 & wait"], environment: [:]) { _ in }
+        }
+        try await Task.sleep(for: .milliseconds(500))
+        let running = try await ToolRunner.lines(URL(fileURLWithPath: "/usr/bin/pgrep"), arguments: ["-f", marker])
+        #expect(!running.isEmpty)
+        let started = Date.now
+        task.cancel()
+        _ = try? await task.value
+        #expect(Date.now.timeIntervalSince(started) < 5)
+        try await Task.sleep(for: .milliseconds(200))
+        let left = try await ToolRunner.lines(URL(fileURLWithPath: "/usr/bin/pgrep"), arguments: ["-f", marker])
+        #expect(left.isEmpty)
+    }
+}
