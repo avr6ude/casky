@@ -19,6 +19,8 @@ struct CaskyApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Open Brewfile…") { model.openBrewfile() }
                     .keyboardShortcut("o")
+                Button("Import Setup…") { model.importSetup() }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .saveItem) {
                 Button("Save Selection as Setup…") { model.promptToSaveSelection() }

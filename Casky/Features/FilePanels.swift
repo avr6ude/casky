@@ -6,8 +6,12 @@ import UniformTypeIdentifiers
 @MainActor
 enum FilePanels {
     static func chooseBrewfile() -> URL? {
+        choose(title: "Open Brewfile")
+    }
+
+    static func choose(title: String) -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "Open Brewfile"
+        panel.title = title
         panel.prompt = "Open"
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
@@ -43,6 +47,27 @@ extension AppModel {
 
     func exportBrewfile(_ items: [Item]) {
         alertMessage = FilePanels.saveBrewfile(brewfile(for: items))
+    }
+
+    func exportSetup(_ setup: SavedSetup) {
+        do {
+            let text = String(decoding: try SetupFile.encode(setup), as: UTF8.self) + "\n"
+            alertMessage = FilePanels.save(text, title: "Export Setup", suggestedName: AnsiblePlaybook.fileName(for: setup).replacingOccurrences(of: ".yml", with: ".casky.json"))
+        } catch {
+            alertMessage = "Couldn't export \(setup.name): \(error.localizedDescription)"
+        }
+    }
+
+    /// Adds a setup from a file exported on another Mac and shows it.
+    func importSetup() {
+        guard let url = FilePanels.choose(title: "Import Setup") else { return }
+        do {
+            let setup = try SetupFile.decode(Data(contentsOf: url))
+            addSetup(setup)
+            revealSetup = setup.id
+        } catch {
+            alertMessage = "Couldn't import \(url.lastPathComponent): \(error.localizedDescription)"
+        }
     }
 
     func exportAnsible(_ setup: SavedSetup) {

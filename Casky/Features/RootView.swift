@@ -31,6 +31,12 @@ struct RootView: View {
             }
         }
         .task { await model.start() }
+        .onChange(of: model.revealSetup) {
+            guard let id = model.revealSetup else { return }
+            onboardingComplete = true
+            destination = .setup(id)
+            model.revealSetup = nil
+        }
         .modifier(Prompts())
         .sheet(isPresented: Binding(get: { model.run != nil }, set: { if !$0 { model.dismissRun() } })) {
             if let run = model.run { RunView(run: run) }
@@ -126,6 +132,7 @@ private struct Sidebar: View {
                         .tag(Destination.setup(setup.id))
                         .contextMenu {
                             Button("Rename…") { model.namePrompt = .rename(setup) }
+                            Button("Export Setup…") { model.exportSetup(setup) }
                             Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
                             Divider()
                             Button("Delete Setup", role: .destructive) { model.deleteSetup(setup.id) }
@@ -135,6 +142,11 @@ private struct Sidebar: View {
                     Task { await model.promptToSaveThisMac() }
                 } label: {
                     Label("Save This Mac…", systemImage: "plus")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                Button(action: model.importSetup) {
+                    Label("Import Setup…", systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)

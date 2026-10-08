@@ -92,6 +92,8 @@ final class AppModel {
     private(set) var heldItems: Set<Item> = []
     /// Editor extensions and other tools on this Mac, for planning setups.
     var developerState = DeveloperState()
+    /// A setup the sidebar should select, e.g. one just imported.
+    var revealSetup: UUID?
     let dotfilesDirectory: URL
     let dotfilesBackupsDirectory: URL
     let preferencesBackupsDirectory: URL
@@ -360,6 +362,11 @@ final class AppModel {
     func renameSetup(_ id: SavedSetup.ID, to name: String) {
         guard let index = setups.firstIndex(where: { $0.id == id }) else { return }
         setups[index].name = Self.cleanName(name, fallback: setups[index].name)
+        persistSetups()
+    }
+
+    func addSetup(_ setup: SavedSetup) {
+        setups.insert(setup, at: 0)
         persistSetups()
     }
 

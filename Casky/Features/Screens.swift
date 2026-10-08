@@ -46,6 +46,8 @@ struct SetupView: View {
             Menu {
                 Button("Rename…") { model.namePrompt = .rename(setup) }
                 Divider()
+                Button("Export Setup…") { model.exportSetup(setup) }
+                    .help("Everything in this setup, as one file to import on another Mac")
                 Button("Export Brewfile…") { model.exportBrewfile(setup.items) }
                 Button("Export Ansible Playbook…") { model.exportAnsible(setup) }
                 Divider()

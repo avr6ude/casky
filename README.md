@@ -10,6 +10,7 @@ A native macOS app for setting up a Mac: pick a kit or search, then install apps
 - Apply Setup: one review, then one run that installs a setup's apps and tools, restores its dotfiles and applies its Mac preferences, with progress, Stop and Retry
 - Dotfiles in saved setups: load a Git repository, choose files or folders, and preview a link or copy restore with backups
 - Mac preferences in saved setups: capture or edit Dock, Finder, keyboard, screenshot and custom settings, then preview and apply with backups
+- Setup export and import: one `.casky.json` file carries a setup's packages and rules, services, editor extensions, global packages, dotfiles and Mac preferences to another Mac (File → Import Setup…); everything in it is validated on import
 - Brewfile export and import (import reads plain entries only and never executes the file)
 - Ansible export: a saved setup becomes a playbook that installs its taps, tools, apps and App Store apps, restores its dotfiles and sets its Mac preferences (`ansible-galaxy collection install community.general`, then `ansible-playbook <file>`)
 - Shows what's already installed; installs one item at a time with live output, Stop and Retry
