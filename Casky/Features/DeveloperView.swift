@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Developer tools a setup carries beyond Homebrew packages: background
-/// services and editor extensions (settings restore with dotfiles).
+/// services, editor extensions (settings restore with dotfiles) and global
+/// npm, pipx, uv and Cargo packages.
 struct DeveloperView: View {
     @Environment(AppModel.self) private var model
     let setup: SavedSetup
@@ -11,6 +12,10 @@ struct DeveloperView: View {
     @State private var newExtension = ""
     @State private var error: String?
     @State private var capturing: Editor?
+    @State private var isAddingPackage = false
+    @State private var packageManager = PackageManager.npm
+    @State private var packageName = ""
+    @State private var isCapturingPackages = false
 
     var body: some View {
         Form {
@@ -23,6 +28,7 @@ struct DeveloperView: View {
             ForEach(Editor.allCases, id: \.self) { editor in
                 editorSection(editor)
             }
+            packagesSection
         }
         .formStyle(.grouped)
         .task { await model.refreshDeveloperState() }
@@ -94,6 +100,97 @@ struct DeveloperView: View {
             if let state { services.append(ServicePolicy(formula: ref, state: state)) }
             setup.services = services.isEmpty ? nil : services
         }
+    }
+
+    // MARK: Global packages
+
+    private var packagesSection: some View {
+        let saved = setup.packages ?? []
+        return Section {
+            ForEach(saved, id: \.self) { package in
+                LabeledContent {
+                    HStack(spacing: 8) {
+                        if model.developerState.packages[package.manager]?.contains(package.name) == true { Pill.installed }
+                        Button {
+                            model.updateSetup(setup.id) { $0.packages?.removeAll { $0 == package } }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove \(package.name)")
+                    }
+                } label: {
+                    Text(package.name).textSelection(.enabled)
+                    Text(package.manager.title)
+                }
+            }
+            HStack {
+                Button("Add Package…") {
+                    packageName = ""
+                    error = nil
+                    isAddingPackage = true
+                }
+                .popover(isPresented: $isAddingPackage) { addPackage }
+                Spacer()
+                if isCapturingPackages { ProgressView().controlSize(.small) }
+                Button("Use This Mac's Packages") { Task { await capturePackages() } }
+                    .disabled(isCapturingPackages || PackageManager.allCases.allSatisfy { DeveloperTools.executable(for: $0) == nil })
+                    .help("Replace this list with the tools npm, pipx, uv and Cargo have installed now")
+            }
+        } header: {
+            Text("Global Packages")
+        } footer: {
+            Text("Command-line tools installed with npm, pipx, uv or Cargo. Each manager comes from Homebrew (node, pipx, uv, rust), or from its own installer.")
+        }
+    }
+
+    private var addPackage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Add a Global Package").font(.headline)
+            Picker("Manager", selection: $packageManager) {
+                ForEach(PackageManager.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            TextField("Package name", text: $packageName, prompt: Text(verbatim: packageManager.example))
+                .onSubmit(addPackageNow)
+            if let error { Text(error).font(.callout).foregroundStyle(.red) }
+            HStack {
+                Spacer()
+                Button("Cancel") { isAddingPackage = false }
+                Button("Add", action: addPackageNow)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(packageName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(width: 360)
+    }
+
+    private func addPackageNow() {
+        do {
+            let package = try GlobalPackage(manager: packageManager, name: packageName)
+            model.updateSetup(setup.id) { setup in
+                if setup.packages?.contains(package) != true { setup.packages = (setup.packages ?? []) + [package] }
+            }
+            isAddingPackage = false
+            error = nil
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func capturePackages() async {
+        isCapturingPackages = true
+        defer { isCapturingPackages = false }
+        var found: [GlobalPackage] = []
+        for manager in PackageManager.allCases where DeveloperTools.executable(for: manager) != nil {
+            do {
+                found += try await DeveloperTools.installedPackages(manager)
+            } catch {
+                self.error = "Couldn't list \(manager.title) packages: \(AppModel.describe(error))"
+            }
+        }
+        model.updateSetup(setup.id) { $0.packages = found.isEmpty ? nil : found }
+        await model.refreshDeveloperState()
     }
 
     // MARK: Editors

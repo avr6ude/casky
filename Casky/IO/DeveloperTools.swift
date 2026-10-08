@@ -1,6 +1,7 @@
 import Foundation
 
-/// Runs editors' command-line tools: listing and installing extensions.
+/// Runs editors' command-line tools and package managers outside
+/// Homebrew: listing what's there and installing what's missing.
 enum DeveloperTools {
     static let applicationFolders = [URL(fileURLWithPath: "/Applications"), URL.homeDirectory.appending(path: "Applications")]
 
@@ -32,6 +33,42 @@ enum DeveloperTools {
         return try await ToolRunner.stream(cli, arguments: ["--install-extension", editorExtension.identifier], environment: environment, onLine: onLine)
     }
 
+    /// Where package managers live: Homebrew's bin, then the per-user
+    /// folders uv, pipx and rustup install into.
+    static var toolFolders: [URL] {
+        [URL(fileURLWithPath: "/opt/homebrew/bin"), URL(fileURLWithPath: "/usr/local/bin"),
+         URL.homeDirectory.appending(path: ".local/bin"), URL.homeDirectory.appending(path: ".cargo/bin")]
+    }
+
+    static func executable(for manager: PackageManager) -> URL? {
+        toolFolders.map { $0.appending(path: manager.rawValue) }.first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+
+    /// npm is a Node script and Cargo calls its compiler: both find their
+    /// helpers through PATH.
+    static var packageEnvironment: [String: String] {
+        var environment = Self.environment
+        environment["PATH"] = (toolFolders.map(\.path) + ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]).joined(separator: ":")
+        return environment
+    }
+
+    static func installedPackages(_ manager: PackageManager) async throws -> [GlobalPackage] {
+        guard let tool = executable(for: manager) else { throw ToolError.missing(manager.title) }
+        let arguments = switch manager {
+        case .npm: ["ls", "--global", "--depth=0", "--json"]
+        case .pipx: ["list", "--json"]
+        case .uv: ["tool", "list"]
+        case .cargo: ["install", "--list"]
+        }
+        let output = try await ToolRunner.run(tool, arguments: arguments, environment: packageEnvironment)
+        return try DeveloperState.decodePackages(output, manager: manager).compactMap { try? GlobalPackage(manager: manager, name: $0) }
+    }
+
+    static func install(_ package: GlobalPackage, onLine: @escaping @Sendable (String) -> Void) async throws -> Int32 {
+        guard let tool = executable(for: package.manager) else { throw ToolError.missing(package.manager.title) }
+        return try await ToolRunner.stream(tool, arguments: package.manager.installArguments + [package.name], environment: packageEnvironment, onLine: onLine)
+    }
+
     static func services(_ homebrew: Homebrew) async throws -> [String: ServiceState] {
         try DeveloperState.decodeServices(try await homebrew.run(["services", "info", "--all", "--json"]))
     }
@@ -40,6 +77,11 @@ enum DeveloperTools {
     static func state(homebrew: Homebrew?) async -> DeveloperState {
         var state = DeveloperState()
         if let homebrew { state.services = (try? await services(homebrew)) ?? [:] }
+        for manager in PackageManager.allCases {
+            if let installed = try? await installedPackages(manager) {
+                state.packages[manager] = Set(installed.map(\.name))
+            }
+        }
         for editor in Editor.allCases {
             if let installed = try? await installedExtensions(editor) {
                 state.extensions[editor] = Set(installed.map(\.identifier))

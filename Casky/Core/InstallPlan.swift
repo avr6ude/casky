@@ -16,6 +16,7 @@ struct InstallStep: Hashable, Sendable {
         case hold(Item)
         case service(Ref, ServiceState)
         case editorExtension(EditorExtension)
+        case globalPackage(GlobalPackage)
         /// Restore a setup's dotfiles from its repository.
         case dotfiles(setup: UUID, DotfilesConfiguration)
         /// Write a setup's Mac preferences.
@@ -31,6 +32,7 @@ struct InstallStep: Hashable, Sendable {
                 case .tap(let tap): tap
                 case .service(let ref, _): ref.name
                 case .editorExtension(let editorExtension): editorExtension.identifier
+                case .globalPackage(let package): package.name
                 case .dotfiles: "Dotfiles"
                 case .preferences: "Mac preferences"
                 case .install, .update, .replace, .remove, .hold: ""
@@ -41,13 +43,13 @@ struct InstallStep: Hashable, Sendable {
         var isUpdate: Bool {
             switch self {
             case .update, .replace: true
-            case .tap, .install, .remove, .hold, .service, .editorExtension, .dotfiles, .preferences: false
+            case .tap, .install, .remove, .hold, .service, .editorExtension, .globalPackage, .dotfiles, .preferences: false
             }
         }
 
         var item: Item? {
             switch self {
-            case .tap, .service, .editorExtension, .dotfiles, .preferences: nil
+            case .tap, .service, .editorExtension, .globalPackage, .dotfiles, .preferences: nil
             case .install(let item), .update(let item), .replace(let item), .remove(let item), .hold(let item): item
             }
         }
@@ -113,6 +115,10 @@ struct InstallPlan: Sendable {
         for editorExtension in setup.extensions ?? [] where developer.extensions[editorExtension.editor]?.contains(editorExtension.identifier) != true {
             let editor = InstallStep.Action.install(editorExtension.editor.cask)
             steps.append(InstallStep(action: .editorExtension(editorExtension), prerequisites: installing.contains(editor) ? [editor] : []))
+        }
+        for package in setup.packages ?? [] where developer.packages[package.manager]?.contains(package.name) != true {
+            let manager = InstallStep.Action.install(package.manager.formula)
+            steps.append(InstallStep(action: .globalPackage(package), prerequisites: installing.contains(manager) ? [manager] : []))
         }
         if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
             steps.append(InstallStep(action: .dotfiles(setup: setup.id, dotfiles), prerequisites: []))

@@ -76,6 +76,21 @@ enum AnsiblePlaybook {
                               changedWhen: quoted("'already installed' not in result.stdout"), register: "result", loop: list(ids)))
         }
 
+        let packages = setup.packages ?? []
+        for manager in PackageManager.allCases {
+            let names = packages.filter { $0.manager == manager }.map(\.name)
+            guard !names.isEmpty else { continue }
+            let name = "Install \(manager.title) packages"
+            let install = switch manager {
+            case .npm: task(name, "community.general.npm", ["name": "\"{{ item }}\"", "global": "true"], loop: list(names))
+            case .pipx: task(name, "community.general.pipx", ["name": "\"{{ item }}\""], loop: list(names))
+            case .cargo: task(name, "community.general.cargo", ["name": "\"{{ item }}\""], loop: list(names))
+            case .uv: task(name, "ansible.builtin.command", ["argv": "[uv, tool, install, \"{{ item }}\"]"],
+                           changedWhen: quoted("'already installed' not in result.stderr"), register: "result", loop: list(names))
+            }
+            tasks.append(install)
+        }
+
         if let dotfiles = setup.dotfiles, !dotfiles.files.isEmpty {
             tasks += dotfilesTasks(dotfiles, setup: setup)
         }
@@ -118,7 +133,7 @@ enum AnsiblePlaybook {
           connection: local
           gather_facts: false
           environment:
-            PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            PATH: "/opt/homebrew/bin:/usr/local/bin:{{ lookup('env', 'HOME') }}/.local/bin:{{ lookup('env', 'HOME') }}/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin"
           tasks:
 
         """

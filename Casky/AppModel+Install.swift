@@ -33,6 +33,7 @@ extension AppModel {
         case .hold(let item): "Hold \(displayEntry(for: item).title) at its version"
         case .service(let ref, let state): "\(ref.name) service: \(state.title.lowercased())"
         case .editorExtension(let editorExtension): "\(editorExtension.editor.title) extension \(editorExtension.identifier)"
+        case .globalPackage(let package): "\(package.name) with \(package.manager.title)"
         case .dotfiles(_, let configuration): configuration.files.count == 1 ? "Restore 1 dotfile" : "Restore \(configuration.files.count) dotfiles"
         case .preferences(_, let preferences): preferences.count == 1 ? "Apply 1 Mac setting" : "Apply \(preferences.count) Mac settings"
         }
@@ -152,6 +153,8 @@ extension AppModel {
                 return 0
             case .editorExtension(let editorExtension):
                 return try await DeveloperTools.install(editorExtension, onLine: onLine)
+            case .globalPackage(let package):
+                return try await DeveloperTools.install(package, onLine: onLine)
             case .preferences(let id, let preferences):
                 try await SetupSteps.applyPreferences(preferences, backups: preferenceBackups.appending(path: id.uuidString), onLine: onLine)
                 return 0

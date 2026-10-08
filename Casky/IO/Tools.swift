@@ -106,7 +106,7 @@ struct Homebrew: Sendable {
             return try await ToolRunner.stream(executable, arguments: ["services", "run", ref.fullName], environment: environment, onLine: onLine)
         case .service(let ref, .stopped):
             return try await ToolRunner.stream(executable, arguments: ["services", "stop", ref.fullName], environment: environment, onLine: onLine)
-        case .hold(.cask), .hold(.mas), .editorExtension, .dotfiles, .preferences:
+        case .hold(.cask), .hold(.mas), .editorExtension, .globalPackage, .dotfiles, .preferences:
             preconditionFailure("\(action.name) isn't a Homebrew step")
         }
     }
