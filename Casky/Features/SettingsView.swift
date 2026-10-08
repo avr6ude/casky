@@ -7,8 +7,7 @@ struct SettingsView: View {
     @State private var error: String?
     @State private var updateStatus = AutoUpdate.status
     @State private var updateError: String?
-    @State private var touchID = TouchIDForSudo.isEnabled
-    @State private var touchIDError: String?
+    @State private var hasSavedPassword = AdminApproval.hasStoredPassword
     @AppStorage("onboardingComplete") private var onboardingComplete = false
 
     var body: some View {
@@ -36,17 +35,21 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Approve installs with Touch ID", isOn: Binding(get: { touchID }, set: setTouchID))
-                    .disabled(!TouchIDForSudo.isAvailable)
-                if let touchIDError {
-                    Text(touchIDError).foregroundStyle(.red).font(.callout)
+                LabeledContent("Approve installs") {
+                    Text(AdminApproval.hasTouchID ? "Touch ID or password" : "Password")
+                }
+                if hasSavedPassword {
+                    LabeledContent("Saved password") {
+                        Button("Forget") {
+                            AdminApproval.forget()
+                            hasSavedPassword = AdminApproval.hasStoredPassword
+                        }
+                    }
                 }
             } header: {
                 Text("Admin Prompts")
             } footer: {
-                Text(TouchIDForSudo.isAvailable
-                     ? "On by default. The first install that needs admin rights asks macOS to allow it, once; after that installs ask for your fingerprint. It turns on Touch ID for sudo on this Mac (in /etc/pam.d/sudo_local), so it applies in Terminal too."
-                     : "This Mac has no Touch ID, so admin prompts ask for your password.")
+                Text("Installs that need admin rights ask with the system prompt, like anything else on your Mac. The first one asks for your Mac password once and keeps it in your keychain, because Homebrew's sudo needs it; Forget removes it and casky asks again next time.")
                     .foregroundStyle(.secondary)
             }
 
@@ -95,17 +98,10 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .onAppear {
             updateStatus = AutoUpdate.status
-            touchID = TouchIDForSudo.isEnabled
+            hasSavedPassword = AdminApproval.hasStoredPassword
         }
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func setTouchID(_ enabled: Bool) {
-        Task {
-            touchIDError = await model.chooseTouchID(enabled)
-            touchID = model.touchIDForAdmin
-        }
     }
 
     private func setAutoUpdate(_ enabled: Bool) {

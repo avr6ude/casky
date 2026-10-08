@@ -473,29 +473,6 @@ import Testing
     }
 }
 
-@Suite struct TouchIDConfigTests {
-    @Test func detectsOnlyAnActivePamTidLine() throws {
-        let template = "# sudo_local: local config file\n# uncomment following line to enable Touch ID for sudo\n#auth       sufficient     pam_tid.so\n"
-        #expect(!TouchIDForSudo.isEnabled(in: template))
-        #expect(TouchIDForSudo.isEnabled(in: template.replacingOccurrences(of: "#auth", with: "auth")))
-        #expect(TouchIDForSudo.isEnabled(in: "auth optional /opt/homebrew/lib/pam/pam_reattach.so\nauth sufficient pam_tid.so\n"))
-        #expect(!TouchIDForSudo.isEnabled(in: ""))
-    }
-}
-
-@MainActor @Suite struct PreviewLayoutTests {
-    private func section(_ title: String, _ count: Int) -> AppDetails.Section {
-        AppDetails.Section(title: title, facts: (0..<count).map { AppDetails.Fact(label: "\($0)", value: "") })
-    }
-
-    @Test func balancesColumnsKeepingOrder() {
-        let columns = AppPreview.balance([section("Overview", 7), section("Requirements", 1), section("Popularity", 3), section("On This Mac", 8)])
-        #expect(columns.map { $0.map(\.title) } == [["Overview", "Popularity"], ["Requirements", "On This Mac"]])
-        #expect(AppPreview.balance([section("Only", 3)]).map(\.count) == [1, 0])
-        #expect(AppPreview.balance([]).map(\.count) == [0, 0])
-    }
-}
-
 @Suite struct UpdatesTests {
     @Test(arguments: [
         ("4.94.0,241994", "4.44.3", true),

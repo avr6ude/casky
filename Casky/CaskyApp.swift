@@ -1,6 +1,5 @@
 import SwiftUI
 
-@main
 struct CaskyApp: App {
     @State private var model = AppModel()
     @AppStorage("onboardingComplete") private var onboardingComplete = false

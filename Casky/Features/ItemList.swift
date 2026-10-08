@@ -25,7 +25,7 @@ struct ItemList: View {
                     isManaged: model.isManaged(entry.item),
                     update: model.updates[entry.item],
                     showsUpdateVersions: showsUpdateVersions,
-                    touchID: model.approvesWithTouchID,
+                    touchID: AdminApproval.hasTouchID,
                     accessory: setup.map { AnyView(SetupRuleMenu(setup: $0, item: entry.item)) },
                     preview: { model.previewEntry = entry }
                 ) {

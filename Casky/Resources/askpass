@@ -1,16 +1,5 @@
 #!/bin/sh
-# SUDO_ASKPASS helper for casky. sudo runs this when an install needs admin
-# rights and Touch ID isn't set up (or was cancelled); it shows a password
-# dialog with casky's icon and prints the answer to stdout, which goes
-# straight back to sudo. Nothing is stored or logged.
-# The item name is passed as an argument, not spliced into the script, so a
-# name can't change what the AppleScript does. Cancel exits non-zero and sudo
-# fails that one install.
-exec /usr/bin/osascript - "${CASKY_ASKPASS_ITEM:-this item}" "$(dirname "$0")/AppIcon.icns" <<'APPLESCRIPT'
-on run argv
-    set itemName to item 1 of argv
-    set iconFile to POSIX file (item 2 of argv)
-    set reply to display dialog "Enter your Mac password to install " & itemName & "." & return & return & "Tip: turn on Touch ID in casky's Settings to approve installs with your finger." default answer "" with hidden answer with title "casky" with icon iconFile buttons {"Cancel", "OK"} default button "OK" cancel button "Cancel"
-    return text returned of reply
-end run
-APPLESCRIPT
+# SUDO_ASKPASS for casky: sudo runs this when an install needs admin rights.
+# casky itself answers (see AdminApproval.swift): the system Touch ID or
+# password prompt, then the password for sudo on stdout.
+exec "$(dirname "$0")/../MacOS/Casky" --askpass
