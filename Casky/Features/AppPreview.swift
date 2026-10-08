@@ -59,7 +59,7 @@ struct AppPreview: View {
                     } else if model.isInstalled(entry.item) {
                         Pill.installed
                     }
-                    if entry.needsAdmin { Pill.approval(touchID: model.touchIDForAdmin) }
+                    if entry.needsAdmin { Pill.approval(touchID: model.approvesWithTouchID) }
                     Text("\(entry.item.kind.label) · \(entry.item.technicalName)")
                         .font(.callout)
                         .foregroundStyle(.tertiary)

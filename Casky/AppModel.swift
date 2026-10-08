@@ -115,12 +115,30 @@ final class AppModel {
         }
     }
 
-    /// The first time something needs admin rights on a Mac with Touch ID,
-    /// offer to use it, so installs don't stop for a typed password. Asked
-    /// once; the system dialog explains and can be cancelled.
-    func offerTouchIDIfUseful(for plan: InstallPlan) async {
-        let key = "touchIDOffered"
-        guard !touchIDForAdmin, TouchIDForSudo.isAvailable, !defaults.bool(forKey: key) else { return }
+    static let touchIDDeclinedKey = "touchIDDeclined"
+
+    /// Touch ID is the default on Macs that have it: it's on, or casky will
+    /// turn it on at the first install that needs admin rights, unless the
+    /// user said no.
+    var approvesWithTouchID: Bool {
+        touchIDForAdmin || (TouchIDForSudo.isAvailable && !defaults.bool(forKey: Self.touchIDDeclinedKey))
+    }
+
+    /// Remembers an explicit choice from Settings, so casky doesn't turn
+    /// Touch ID back on after the user turned it off.
+    func chooseTouchID(_ enabled: Bool) async -> String? {
+        let error = await setTouchID(enabled)
+        defaults.set(!touchIDForAdmin, forKey: Self.touchIDDeclinedKey)
+        return error
+    }
+
+    /// The first install that needs admin rights turns Touch ID on, through
+    /// macOS's own authorization dialog (which takes Touch ID itself).
+    /// sudo only accepts a fingerprint once that's done; casky can't skip
+    /// that one approval. Cancelling means password prompts, and casky
+    /// doesn't ask again.
+    func enableTouchIDIfNeeded(for plan: InstallPlan) async {
+        guard !touchIDForAdmin, approvesWithTouchID else { return }
         let needsAdmin = catalog?.adminItems ?? []
         let asksForPassword = plan.steps.contains { step in
             switch step.action {
@@ -129,8 +147,8 @@ final class AppModel {
             }
         }
         guard asksForPassword else { return }
-        defaults.set(true, forKey: key)
         if let error = await setTouchID(true) { runNote = error }
+        if !touchIDForAdmin { defaults.set(true, forKey: Self.touchIDDeclinedKey) }
     }
 
     private(set) var selection: [Item] = []

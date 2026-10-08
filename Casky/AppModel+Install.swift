@@ -123,7 +123,7 @@ extension AppModel {
             run = RunState(plan: previewPlan(for: setup))
         }
 
-        if let plan = run?.plan { await offerTouchIDIfUseful(for: plan) }
+        if let plan = run?.plan { await enableTouchIDIfNeeded(for: plan) }
         while let step = run?.nextStep() {
             currentOutput = []
             currentStepStarted = .now

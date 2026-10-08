@@ -45,7 +45,9 @@ enum TouchIDForSudo {
     /// Runs the edit through the standard macOS authorization dialog.
     static func setEnabled(_ enabled: Bool) async throws {
         let script = script(enabled: enabled, file: configFile.path)
-        let prompt = enabled ? "casky wants to turn on Touch ID for admin prompts." : "casky wants to turn off Touch ID for admin prompts."
+        let prompt = enabled
+            ? "casky wants to use Touch ID for installs, so apps that need admin rights ask for your fingerprint instead of your password."
+            : "casky wants to stop using Touch ID for installs."
         _ = try await ToolRunner.run(
             URL(fileURLWithPath: "/usr/bin/osascript"),
             arguments: [

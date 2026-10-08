@@ -36,7 +36,7 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Use Touch ID for admin prompts", isOn: Binding(get: { touchID }, set: setTouchID))
+                Toggle("Approve installs with Touch ID", isOn: Binding(get: { touchID }, set: setTouchID))
                     .disabled(!TouchIDForSudo.isAvailable)
                 if let touchIDError {
                     Text(touchIDError).foregroundStyle(.red).font(.callout)
@@ -45,7 +45,7 @@ struct SettingsView: View {
                 Text("Admin Prompts")
             } footer: {
                 Text(TouchIDForSudo.isAvailable
-                     ? "Installs that need admin rights ask for your fingerprint instead of your password. This turns on Touch ID for sudo on this Mac (in /etc/pam.d/sudo_local), so it applies in Terminal too."
+                     ? "On by default. The first install that needs admin rights asks macOS to allow it, once; after that installs ask for your fingerprint. It turns on Touch ID for sudo on this Mac (in /etc/pam.d/sudo_local), so it applies in Terminal too."
                      : "This Mac has no Touch ID, so admin prompts ask for your password.")
                     .foregroundStyle(.secondary)
             }
@@ -103,7 +103,7 @@ struct SettingsView: View {
 
     private func setTouchID(_ enabled: Bool) {
         Task {
-            touchIDError = await model.setTouchID(enabled)
+            touchIDError = await model.chooseTouchID(enabled)
             touchID = model.touchIDForAdmin
         }
     }
