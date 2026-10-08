@@ -101,6 +101,38 @@ final class AppModel {
     /// Whether admin prompts use Touch ID (Settings > Admin Prompts).
     var touchIDForAdmin = TouchIDForSudo.isEnabled
 
+    /// Turns Touch ID for admin prompts on or off through the system's
+    /// authorization dialog. Returns an error to show; cancelling isn't one.
+    func setTouchID(_ enabled: Bool) async -> String? {
+        defer { touchIDForAdmin = TouchIDForSudo.isEnabled }
+        do {
+            try await TouchIDForSudo.setEnabled(enabled)
+            return nil
+        } catch ToolError.failed(_, _, let stderr) where stderr.contains("-128") {
+            return nil
+        } catch {
+            return "Couldn't change Touch ID for admin prompts: \(Self.describe(error))"
+        }
+    }
+
+    /// The first time something needs admin rights on a Mac with Touch ID,
+    /// offer to use it, so installs don't stop for a typed password. Asked
+    /// once; the system dialog explains and can be cancelled.
+    func offerTouchIDIfUseful(for plan: InstallPlan) async {
+        let key = "touchIDOffered"
+        guard !touchIDForAdmin, TouchIDForSudo.isAvailable, !defaults.bool(forKey: key) else { return }
+        let needsAdmin = catalog?.adminItems ?? []
+        let asksForPassword = plan.steps.contains { step in
+            switch step.action {
+            case .install(let item), .update(let item), .replace(let item), .remove(let item): item.kind == .mas || needsAdmin.contains(item)
+            default: false
+            }
+        }
+        guard asksForPassword else { return }
+        defaults.set(true, forKey: key)
+        if let error = await setTouchID(true) { runNote = error }
+    }
+
     private(set) var selection: [Item] = []
     private var selectedSet: Set<Item> = []
 

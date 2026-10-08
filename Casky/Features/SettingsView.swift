@@ -103,16 +103,8 @@ struct SettingsView: View {
 
     private func setTouchID(_ enabled: Bool) {
         Task {
-            do {
-                try await TouchIDForSudo.setEnabled(enabled)
-                touchIDError = nil
-            } catch ToolError.failed(_, _, let stderr) where stderr.contains("-128") {
-                // Cancelled in the authorization dialog.
-            } catch {
-                touchIDError = "Couldn't change Touch ID for admin prompts: \(AppModel.describe(error))"
-            }
-            touchID = TouchIDForSudo.isEnabled
-            model.touchIDForAdmin = touchID
+            touchIDError = await model.setTouchID(enabled)
+            touchID = model.touchIDForAdmin
         }
     }
 

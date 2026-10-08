@@ -134,6 +134,19 @@ private struct SetupToolsPage: View {
                 ) {
                     Task { await CommandLineTools.install() }
                 }
+                if TouchIDForSudo.isAvailable {
+                    Divider().padding(.leading, 56)
+                    ToolRow(
+                        name: "Touch ID for installs",
+                        detail: "Approve apps that need admin rights with your finger instead of your password.",
+                        symbol: "touchid",
+                        isReady: model.touchIDForAdmin,
+                        isWorking: false,
+                        actionTitle: "Turn On"
+                    ) {
+                        Task { _ = await model.setTouchID(true) }
+                    }
+                }
                 Divider().padding(.leading, 56)
                 ToolRow(
                     name: "mas",
